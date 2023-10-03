@@ -1,0 +1,62 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/dbildungsplattform/ionos-exporter
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion.
+  tag: latest
+
+imagePullSecrets: []
+
+nameOverride: ""
+# currently if you do not set the fullnameOverride the too many colons in address error will occur
+fullnameOverride: "ionosexporter"
+
+# credentials
+ionos_credentials_secret_name: "ionos-exporter-credentials"
+ionos_credentials_username_key: "username"
+ionos_credentials_password_key: "password"
+
+# ionos_api_cycle: 900
+
+serviceAccount:
+  create: true
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+  # Annotations to add to the service account
+  annotations: {}
+
+securityContext: {}
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+
+# do not know how can i add these vars to the go container - sting and number do not work
+# Deployment in version "v1" cannot be handled as a Deployment: json: cannot unmarshal number into Go struct field EnvVar.spec.template.spec.containers.env.value of type string
+containerPort: 9100
+
+# ionosApiCycle: "900"
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+

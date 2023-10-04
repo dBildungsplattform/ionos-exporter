@@ -43,7 +43,7 @@ jobs:
           mv ionos-exporter automation/ionos-exporter
       - name: Push Helm Chart
         env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN_INVENTORY }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "ionos-exporter@dbildungsplattform.de"
           git config --global user.name "ionos-exporter-gha"

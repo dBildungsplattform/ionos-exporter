@@ -27,17 +27,17 @@ jobs:
       - name: Helm Repository Checkout
         uses: actions/checkout@v3
         with:
-          repository: dBildungsplattform/helm-chart-registry
+          repository: dBildungsplattform/helm-charts-registry
           # token: ${{ secrets.TOKEN_INVENTORY }}
           fetch-depth: 0
           persist-credentials: true
           ref: main
-          path: helm-chart-registry
+          path: helm-charts-registry
       - name: Prepare Helm Chart
         run:  |
           # ionos-exporter
-          helm package charts/ionos-exporter -d helm-chart-registry
-          cd helm-chart-registry
+          helm package charts/ionos-exporter -d helm-charts-registry
+          cd helm-charts-registry
           if [ -d "automation/ionos-exporter" ]; then rm -r automation/ionos-exporter; fi
           tar -xzf ionos-exporter*.tgz
           mv ionos-exporter automation/ionos-exporter
@@ -48,7 +48,7 @@ jobs:
           git config --global user.email "ionos-exporter@dbildungsplattform.de"
           git config --global user.name "ionos-exporter-gha"
           CHART_PACKAGE_NAMES="ionos-exporter"
-          cd helm-chart-registry/automation
+          cd helm-charts-registry/automation
           git add $CHART_PACKAGE_NAMES
           git commit -m "$CHART_PACKAGE_NAMES"
           git push origin main

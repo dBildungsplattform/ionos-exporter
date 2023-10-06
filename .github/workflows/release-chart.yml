@@ -28,6 +28,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: dBildungsplattform/helm-charts-registry
+          # needs a token with least privileg
           # token: ${{ secrets.TOKEN_INVENTORY }}
           fetch-depth: 0
           persist-credentials: true
@@ -43,6 +44,7 @@ jobs:
           mv ionos-exporter automation/ionos-exporter
       - name: Push Helm Chart
         env:
+        # needs a token with least privileg
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "ionos-exporter@dbildungsplattform.de"

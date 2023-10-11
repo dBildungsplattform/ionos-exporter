@@ -26,10 +26,10 @@ serviceAccount:
   # Annotations to add to the service account
   annotations: {}
 
-securityContext: {}
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
+podSecurityContext: {}
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 2000
 
 service:
   type: ClusterIP
@@ -51,8 +51,10 @@ resources: {}
 
 podAnnotations: {}
 
-podSecurityContext: {}
-  # fsGroup: 2000
+securityContext: {}
+  allowPrivilegeEscalation: false
+  capabilities:
+    add: ["NET_ADMIN", "SYS_TIME"]
 
 nodeSelector: {}
 

@@ -60,9 +60,9 @@ spec:
                   name: {{ .Values.ionos_credentials_secret_name  }}
                   key: {{ .Values.ionos_credentials_password_key  }}
             - name: IONOS_EXPORTER_CONTAINER_PORT
-              value: {{ .Values.containerPort}}
+              value: {{ .Values.containerPort | quote }}
             - name: IONOS_EXPORTER_API_CYCLE
-              value: {{ .Values.ionosApiCycle}}
+              value: {{ .Values.ionosApiCycle | quote }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

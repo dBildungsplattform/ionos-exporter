@@ -17,7 +17,9 @@ ionos_credentials_secret_name: "ionos-exporter-credentials"
 ionos_credentials_username_key: "username"
 ionos_credentials_password_key: "password"
 
-# ionos_api_cycle: 900
+service:
+  type: ClusterIP
+  port: 80
 
 serviceAccount:
   create: true
@@ -26,20 +28,17 @@ serviceAccount:
   # Annotations to add to the service account
   annotations: {}
 
+# Security configuration: Do not run as root
 podSecurityContext: 
   runAsNonRoot: true
   runAsUser: 1000
   runAsGroup: 2000
+securityContext:
+  allowPrivilegeEscalation: false
 
-service:
-  type: ClusterIP
-  port: 80
-
-# do not know how can i add these vars to the go container - sting and number do not work
-# Deployment in version "v1" cannot be handled as a Deployment: json: cannot unmarshal number into Go struct field EnvVar.spec.template.spec.containers.env.value of type string
+# Application configuration
 containerPort: 9100
-
-# ionosApiCycle: "900"
+ionosApiCycle: 900
 
 resources: {}
   # limits:
@@ -50,11 +49,6 @@ resources: {}
   #   memory: 128Mi
 
 podAnnotations: {}
-
-securityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    add: ["NET_ADMIN", "SYS_TIME"]
 
 nodeSelector: {}
 

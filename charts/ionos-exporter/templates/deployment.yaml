@@ -23,7 +23,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "ionos-exporter.serviceAccountName" . }}
-      podSecurityContext:
+      securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
@@ -59,6 +59,10 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.ionos_credentials_secret_name  }}
                   key: {{ .Values.ionos_credentials_password_key  }}
+            - name: IONOS_EXPORTER_CONTAINER_PORT
+              value: {{ .Values.containerPort}}
+            - name: IONOS_EXPORTER_API_CYCLE
+              value: {{ .Values.ionosApiCycle}}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -37,8 +37,8 @@ securityContext:
   allowPrivilegeEscalation: false
 
 # Application configuration
-containerPort: 9100
-ionosApiCycle: 900
+containerPort: "9100"
+ionosApiCycle: "900"
 
 resources: {}
   # limits:

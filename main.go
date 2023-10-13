@@ -4,6 +4,7 @@ import (
 	"ionos-exporter/internal"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 
@@ -27,5 +28,6 @@ func main() {
 	internal.StartPrometheus(mutex)
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/healthcheck", http.HandlerFunc(internal.HealthCheck))
+	log.Print(os.Environ())
 	log.Fatal(http.ListenAndServe(":"+exporterPort, nil))
 }

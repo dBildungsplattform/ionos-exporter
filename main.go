@@ -17,7 +17,7 @@ var (
 )
 
 func main() {
-	exporterPort = internal.GetEnv("IONOS_EXPORTER_CONTAINER_PORT", "9100")
+	exporterPort = internal.GetEnv("IONOS_EXPORTER_APPLICATION_CONTAINER_PORT", "9100")
 	if cycletime, err := strconv.ParseInt(internal.GetEnv("IONOS_EXPORTER_API_CYCLE", "900"), 10, 32); err != nil {
 		log.Fatal("Cannot convert IONOS_API_CYCLE to int")
 	} else {
@@ -27,6 +27,5 @@ func main() {
 	internal.StartPrometheus(mutex)
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/healthcheck", http.HandlerFunc(internal.HealthCheck))
-	log.Print(exporterPort)
 	log.Fatal(http.ListenAndServe(":"+exporterPort, nil))
 }

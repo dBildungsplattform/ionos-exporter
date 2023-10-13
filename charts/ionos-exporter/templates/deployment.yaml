@@ -45,9 +45,6 @@ spec:
               port: {{ .Values.containerPort }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          envFrom:
-          - configMapRef:
-              name: {{ include "ionos-exporter.fullname" . }}-configmap
           env:
             - name: IONOS_USERNAME
               valueFrom:

@@ -8,10 +8,6 @@ image:
 
 imagePullSecrets: []
 
-nameOverride: ""
-# currently if you do not set the fullnameOverride the too many colons in address error will occur
-fullnameOverride: "ionosexporter"
-
 # credentials
 ionos_credentials_secret_name: "ionos-exporter-credentials"
 ionos_credentials_username_key: "username"
@@ -37,8 +33,8 @@ securityContext:
   allowPrivilegeEscalation: false
 
 # Application configuration
-containerPort: "9100"
-ionosApiCycle: "900"
+containerPort: "9000"
+ionosApiCycle: "1000"
 
 resources: {}
   # limits:

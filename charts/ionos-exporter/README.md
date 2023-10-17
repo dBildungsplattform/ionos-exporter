@@ -1,6 +1,6 @@
 # ionos-exporter
 
-![Version: 0.0.1](https://img.shields.io/badge/Version-0.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: .0.1](https://img.shields.io/badge/AppVersion-0.0.1-informational?style=flat-square)
+![Version: 0.0.11](https://img.shields.io/badge/Version-0.0.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.0.3](https://img.shields.io/badge/AppVersion-0.0.1-informational?style=flat-square)
 
 A Helm chart for Kubernetes
 
@@ -34,7 +34,8 @@ helm install chart_name ./ionos-exporter -f values.yaml
 |-----|------|---------|-------------|
 | image.repositor | string | ghcr.io/dbildungsplattform/ionos-exporter | registry to pull image from |
 | image.pullPolicy | string | IfNotPresent | overwrite image pull policy |
-| image.tag | string | latest | set image tag |
+| image.tag | string | Chart.AppVersion | set image tag |
+| name | string | Chart.name | Name of the Kubernetes Deployment; Can be overwritten in `values.yaml` | 
 | containerPort | int | 9100 | port to be used for exposing the metrics |
 | ionos_credentials_secret_name | string | ionos-exporter-credentials | name of kubernetes secret that entails ionos credentials |
 | ionos_credentials_username_key | string | username | key of secret to reference to username |

@@ -5,10 +5,7 @@ name: Go
 
 on:
   push:
-    tags: ['*']
-    branches-ignore: [ "main" ]
-  pull_request:
-    branches-ignore: [ "main" ]
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
 
 jobs:
   build_image_on_push:

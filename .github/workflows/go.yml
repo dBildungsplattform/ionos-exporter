@@ -5,6 +5,7 @@ name: Go
 
 on:
   push:
+    tags: ['*']
     branches-ignore: [ "main" ]
   pull_request:
     branches-ignore: [ "main" ]

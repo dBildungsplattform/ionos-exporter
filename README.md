@@ -7,6 +7,5 @@ For more details on application configuration and Helm chart packaging see [/cha
 The rollout of the provided Helm chart is automated with Ansible and the [kubernetes.core.helm](https://docs.ansible.com/ansible/latest/collections/kubernetes/core/helm_module.html) Module. 
 A release follows these steps:
 1. Increment _version_ and _AppVersion_ in `charts/ionos-exporter/Chart.yaml`
-2. Create a tag with `git tag v<AppVersion>`. Make sure the tags versions matches with _AppVersion_ since this is the default for the container images tag as defined in `charts/ionos-exporter/templates/deployment.yaml`.
+2. Create a tag with `git tag <AppVersion>`. Make sure the tags versions matches with _AppVersion_. This is the default for the container images tag as defined in `charts/ionos-exporter/templates/deployment.yaml`.
 3. Push tags (and other changes) upstream with `git push origin --tags` 
-4. Once all workflows completed run the Ansible playbook.

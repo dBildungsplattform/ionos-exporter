@@ -2,7 +2,7 @@ name: Push Charts to helm-charts-registry
 
 on:
   push:
-    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
 
 jobs:
   release:

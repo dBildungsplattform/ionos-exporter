@@ -1,0 +1,55 @@
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/dbildungsplattform/ionos-exporter
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# credentials
+ionos_credentials_secret_name: "ionos-exporter-credentials"
+ionos_credentials_username_key: "username"
+ionos_credentials_password_key: "password"
+
+service:
+  type: ClusterIP
+  port: 80
+
+serviceAccount:
+  create: true
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+  # Annotations to add to the service account
+  annotations: {}
+
+# Security configuration: Do not run as root
+podSecurityContext: 
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 2000
+securityContext:
+  allowPrivilegeEscalation: false
+
+# Application configuration
+containerPort: "9100"
+ionosApiCycle: "900"
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+podAnnotations: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+

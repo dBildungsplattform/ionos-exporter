@@ -46,6 +46,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}
           tags: |
+            type=semver,pattern={{version}}
             type=match,value={{branch}},pattern=.*\d,suffix=-latest
 
       - name: Log into registry

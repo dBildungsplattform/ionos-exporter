@@ -1,0 +1,16 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "ionos-exporter.fullname" . }}
+  # Change this to the namespace the Prometheus instance is running in
+  # namespace: default
+  labels:
+    {{- include "ionos-exporter.labels" . | nindent 4 }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      {{- include "ionos-exporter.selectorLabels" . | nindent 6 }}
+  endpoints:
+  - port: metrics
+    interval: 15s

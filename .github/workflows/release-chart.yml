@@ -1,0 +1,53 @@
+name: Push Charts to helm-charts-registry
+
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com" 
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 3.12.0 
+
+      - name: Helm Repository Checkout
+        uses: actions/checkout@v3
+        with:
+          repository: dBildungsplattform/helm-charts-registry
+          token: ${{ secrets.HELM_CHARTS_REGISTRY_PUBLISHER }}
+          fetch-depth: 0
+          persist-credentials: true
+          ref: main
+          path: helm-charts-registry
+      - name: Prepare Helm Chart
+        run:  |
+          # ionos-exporter
+          helm package charts/ionos-exporter -d helm-charts-registry
+          cd helm-charts-registry
+          if [ -d "automation/ionos-exporter" ]; then rm -r automation/ionos-exporter; fi
+          tar -xzf ionos-exporter*.tgz
+          mv ionos-exporter automation/ionos-exporter
+      - name: Push Helm Chart
+        env:
+          GITHUB_TOKEN: ${{ secrets.HELM_CHARTS_REGISTRY_PUBLISHER }}
+        run: |
+          git config --global user.email "ionos-exporter@dbildungsplattform.de"
+          git config --global user.name "ionos-exporter-gha"
+          CHART_PACKAGE_NAMES="ionos-exporter"
+          cd helm-charts-registry/automation
+          git add $CHART_PACKAGE_NAMES
+          git commit -m "$CHART_PACKAGE_NAMES"
+          git push origin main

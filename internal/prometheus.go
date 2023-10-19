@@ -88,11 +88,11 @@ func (collector *ionosCollector) Collect(ch chan<- prometheus.Metric) {
 	for dcName, dcResources := range IonosDatacenters {
 		//Write latest value for each metric in the prometheus metric channel.
 		collector.coresMetric.WithLabelValues(dcName).Set(float64(dcResources.Cores))
-		collector.ramMetric.WithLabelValues(dcName).Set(float64(dcResources.Ram))
+		collector.ramMetric.WithLabelValues(dcName).Set(float64(dcResources.Ram / 1024)) // MB -> GB
 		collector.serverMetric.WithLabelValues(dcName).Set(float64(dcResources.Servers))
 	}
 	collector.dcCoresMetric.WithLabelValues("SVS").Set(float64(CoresTotal))
-	collector.dcRamMetric.WithLabelValues("SVS").Set(float64(RamTotal))
+	collector.dcRamMetric.WithLabelValues("SVS").Set(float64(RamTotal / 1024)) // MB -> GB
 	collector.dcServerMetric.WithLabelValues("SVS").Set(float64(ServerTotal))
 	collector.dcDCMetric.WithLabelValues("SVS").Set(float64(DataCenters))
 

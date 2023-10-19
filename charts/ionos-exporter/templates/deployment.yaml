@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ionos-exporter.fullname" . }}
+  labels:
+    {{- include "ionos-exporter.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ionos-exporter.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ionos-exporter.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "ionos-exporter.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: metrics
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: {{ .Values.containerPort }}
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: {{ .Values.containerPort }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: IONOS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ionos_credentials_secret_name }}
+                  key: {{ .Values.ionos_credentials_username_key }}
+            - name: IONOS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ionos_credentials_secret_name  }}
+                  key: {{ .Values.ionos_credentials_password_key  }}
+            - name: IONOS_EXPORTER_APPLICATION_CONTAINER_PORT
+              value: {{ .Values.containerPort | quote }}
+            - name: IONOS_EXPORTER_API_CYCLE
+              value: {{ .Values.ionosApiCycle | quote }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -85,6 +85,11 @@ func (collector *ionosCollector) Collect(ch chan<- prometheus.Metric) {
 	//for each descriptor or call other functions that do so.
 	collector.mutex.RLock()
 	defer collector.mutex.RUnlock()
+
+	// Reset metrics in case a datacenter was removed
+	collector.coresMetric.Reset()
+	collector.ramMetric.Reset()
+	collector.serverMetric.Reset()
 	for dcName, dcResources := range IonosDatacenters {
 		//Write latest value for each metric in the prometheus metric channel.
 		collector.coresMetric.WithLabelValues(dcName).Set(float64(dcResources.Cores))

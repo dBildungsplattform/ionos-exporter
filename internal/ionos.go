@@ -60,11 +60,11 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 				Ram:     ramTotalDC,
 				Servers: serverTotalDC,
 			}
-			CalculateDCTotals(m)
 		}
 		m.Lock()
 		IonosDatacenters = newIonosDatacenters
 		m.Unlock()
+		CalculateDCTotals(m)
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
 }

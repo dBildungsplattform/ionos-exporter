@@ -37,6 +37,7 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 			os.Exit(1)
 		}
+		newIonosDatacenters := make(map[string]IonosDCResources)
 		for _, datacenter := range *datacenters.Items {
 			var (
 				coresTotalDC  int32 = 0
@@ -53,16 +54,17 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 				coresTotalDC += *server.Properties.Cores
 				ramTotalDC += *server.Properties.Ram
 			}
-			m.Lock()
-			IonosDatacenters[*datacenter.Properties.Name] = IonosDCResources{
+			newIonosDatacenters[*datacenter.Properties.Name] = IonosDCResources{
 				DCId:    *datacenter.Id,
 				Cores:   coresTotalDC,
 				Ram:     ramTotalDC,
 				Servers: serverTotalDC,
 			}
-			m.Unlock()
-			CalculateDCTotals(m)
 		}
+		m.Lock()
+		IonosDatacenters = newIonosDatacenters
+		m.Unlock()
+		CalculateDCTotals(m)
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
 }

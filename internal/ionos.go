@@ -9,6 +9,7 @@ import (
 	"time"
 
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
+	"github.com/joho/godotenv"
 )
 
 var (
@@ -17,7 +18,7 @@ var (
 	ServerTotal      int32 = 0
 	DataCenters      int32 = 0
 	IonosDatacenters       = make(map[string]IonosDCResources) //Key is the name of the datacenter
-	depth            int32 = 1                                 //Controls the detail depth of the response objects.
+	depth            int32 = 1
 )
 
 type IonosDCResources struct {
@@ -28,8 +29,28 @@ type IonosDCResources struct {
 }
 
 func CollectResources(m *sync.RWMutex, cycletime int32) {
-	configuration := ionoscloud.NewConfigurationFromEnv()
-	apiClient := ionoscloud.NewAPIClient(configuration)
+
+	file, _ := os.Create("ionosoutput.txt")
+
+	defer file.Close()
+
+	oldStdout := os.Stdout
+	defer func() { os.Stdout = oldStdout }()
+	os.Stdout = file
+
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Println("Error loading .env file")
+	}
+	// username := os.Getenv("IONOS_USERNAME")
+	// password := os.Getenv("IONOS_PASSWORD")
+	// cfg := ionoscloud.NewConfiguration(username, password, "", "")
+	cfgENV := ionoscloud.NewConfigurationFromEnv()
+
+	// cfg.Debug = true
+	cfgENV.Debug = true
+	apiClient := ionoscloud.NewAPIClient(cfgENV)
+
 	for {
 		datacenters, resp, err := apiClient.DataCentersApi.DatacentersGet(context.Background()).Depth(depth).Execute()
 		if err != nil {
@@ -37,6 +58,7 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 			os.Exit(1)
 		}
+		fmt.Println("DATACENTER", datacenters)
 		newIonosDatacenters := make(map[string]IonosDCResources)
 		for _, datacenter := range *datacenters.Items {
 			var (
@@ -45,29 +67,37 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 				serverTotalDC int32 = 0
 			)
 			servers, resp, err := apiClient.ServersApi.DatacentersServersGet(context.Background(), *datacenter.Id).Depth(depth).Execute()
+			//fmt.Println("SERVERS", servers)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error when calling `ServersApi.DatacentersServersGet``: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 			}
 			serverTotalDC = int32(len(*servers.Items))
+
 			for _, server := range *servers.Items {
 				coresTotalDC += *server.Properties.Cores
 				ramTotalDC += *server.Properties.Ram
 			}
+
 			newIonosDatacenters[*datacenter.Properties.Name] = IonosDCResources{
 				DCId:    *datacenter.Id,
 				Cores:   coresTotalDC,
 				Ram:     ramTotalDC,
 				Servers: serverTotalDC,
 			}
+
 		}
+
 		m.Lock()
 		IonosDatacenters = newIonosDatacenters
+		LoadbalancerCollector(apiClient)
+		IPCollectResources(apiClient)
 		m.Unlock()
 		CalculateDCTotals(m)
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
 }
+
 func CalculateDCTotals(m *sync.RWMutex) {
 	var (
 		serverTotal      int32
@@ -96,7 +126,7 @@ func PrintDCResources(m *sync.RWMutex) {
 	for dcName, dcResources := range IonosDatacenters {
 		fmt.Fprintf(os.Stdout, "%s:\n    - UUID: %s\n", dcName, dcResources.DCId)
 		fmt.Fprintf(os.Stdout, "    - Servers: %d\n", dcResources.Servers)
-		fmt.Fprintf(os.Stdout, "    - Cores: %d\n", dcResources.Cores)
+		fmt.Fprintf(os.Stdout, "%s:\n    - Cores: %d\n", dcName, dcResources.Cores)
 		fmt.Fprintf(os.Stdout, "    - Ram: %d GB\n", dcResources.Ram/1024)
 	}
 }
@@ -108,3 +138,8 @@ func PrintDCTotals(m *sync.RWMutex) {
 	log.Printf("Total - Cores: %d\n", CoresTotal)
 	log.Printf("Total - Ram: %d GB\n", RamTotal/1024)
 }
+
+//problemen mit ionos log bucket konnte nicht testen richtig
+//noch problemen mit aktuallisierung von log data wenn welche geloescht werden
+//problem sa paralelizacijom. logove mogu kalkulisati kako treba
+//ali ne tako brzo

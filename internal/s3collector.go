@@ -58,8 +58,8 @@ func S3CollectResources() {
 	endpoints := map[string]struct {
 		Region, AccessKey, SecretKey, Endpoint string
 	}{
-		"de":           {"de", "00e556b6437d8a8d1776", "LbypY0AmotQCDDckTz+cAPFI7l0eQvSFeQ1WxKtw", "https://s3-eu-central-1.ionoscloud.com"},
-		"eu-central-2": {"eu-central-2", "00e556b6437d8a8d1776", "LbypY0AmotQCDDckTz+cAPFI7l0eQvSFeQ1WxKtw", "https://s3-eu-central-2.ionoscloud.com"},
+		"de":           {"de", "", "+", "https://s3-eu-central-1.ionoscloud.com"},
+		"eu-central-2": {"eu-central-2", "", "+", "https://s3-eu-central-2.ionoscloud.com"},
 		// Add more endpoints as needed
 	}
 

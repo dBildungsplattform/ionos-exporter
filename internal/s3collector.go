@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	aws "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -44,7 +43,7 @@ func createS3ServiceClient(region, accessKey, secretKey, endpoint string) (*s3.S
 	return s3.New(sess), nil
 }
 
-func S3CollectResources(m *sync.RWMutex, cycletime int32) {
+func S3CollectResources() {
 	// accessKey := os.Getenv("IONOS_ACCESS_KEY")
 	// secretKey := os.Getenv("IONOS_SECRET_KEY")
 
@@ -59,8 +58,8 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 	endpoints := map[string]struct {
 		Region, AccessKey, SecretKey, Endpoint string
 	}{
-		"de":           {"de", "", "", "https://s3-eu-central-1.ionoscloud.com"},
-		"eu-central-2": {"eu-central-2", "", "", "https://s3-eu-central-2.ionoscloud.com"},
+		"de":           {"de", "00e556b6437d8a8d1776", "LbypY0AmotQCDDckTz+cAPFI7l0eQvSFeQ1WxKtw", "https://s3-eu-central-1.ionoscloud.com"},
+		"eu-central-2": {"eu-central-2", "00e556b6437d8a8d1776", "LbypY0AmotQCDDckTz+cAPFI7l0eQvSFeQ1WxKtw", "https://s3-eu-central-2.ionoscloud.com"},
 		// Add more endpoints as needed
 	}
 
@@ -76,133 +75,118 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 	// var totalLineCount int = 0
 	// Create service clients for each endpoint
 
-	for {
-		for endpoint, config := range endpoints {
-			if _, exists := serviceClients[endpoint]; exists {
-				continue
-			}
-			client, err := createS3ServiceClient(config.Region, config.AccessKey, config.SecretKey, config.Endpoint)
-			if err != nil {
-				fmt.Printf("Error creating service client for endpoint %s: %v\n", endpoint, err)
-				continue
-			}
-			serviceClients[endpoint] = client
+	for endpoint, config := range endpoints {
+		if _, exists := serviceClients[endpoint]; exists {
+			continue
 		}
-		for endpoint, client := range serviceClients {
-			fmt.Println("Using service client for endpoint: %s\n", endpoint)
-			// serviceClient := s3.New(sess)
+		client, err := createS3ServiceClient(config.Region, config.AccessKey, config.SecretKey, config.Endpoint)
+		if err != nil {
+			fmt.Printf("Error creating service client for endpoint %s: %v\n", endpoint, err)
+			continue
+		}
+		serviceClients[endpoint] = client
 
-			result, err := client.ListBuckets(nil)
+		fmt.Println("Using service client for endpoint: %s\n", endpoint)
+		// serviceClient := s3.New(sess)
+
+		result, err := client.ListBuckets(nil)
+		if err != nil {
+			fmt.Println("Problem with the Listing of the Buckets")
+		}
+
+		for _, buckets := range result.Buckets {
+			var (
+				totalGetMethods    int32 = 0
+				totalPutMethods    int32 = 0
+				totalGetMethodSize int64 = 0
+				totalPutMethodSize int64 = 0
+			)
+
+			objectList, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
+				Bucket: aws.String(*buckets.Name),
+				Prefix: aws.String("logs/"),
+			})
 			if err != nil {
-				fmt.Println("Problem with the Listing of the Buckets")
+				fmt.Println("Could not use the service client to list objects")
+				continue
 			}
-
-			for _, buckets := range result.Buckets {
-				var (
-					totalGetMethods    int32 = 0
-					totalPutMethods    int32 = 0
-					totalGetMethodSize int64 = 0
-					totalPutMethodSize int64 = 0
-				)
-
-				if HasLogsFolder(client, *buckets.Name) {
-
-					objectList, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
-						Bucket: aws.String(*buckets.Name),
-					})
-					if err != nil {
-						fmt.Println("Could not use the service client to list objects")
-						continue
-					}
-					for _, object := range objectList.Contents {
-						// fmt.Println(aws.StringValue(object.Key))
-						// fmt.Println("This is the object size", *object.Size)
-						//limitieren von Menge von Logs
-						downloadInput := &s3.GetObjectInput{
-							Bucket: aws.String(*buckets.Name),
-							Key:    aws.String(*object.Key),
-						}
-
-						result, err := client.GetObject(downloadInput)
-						if err != nil {
-							fmt.Println("Error downloading object", err)
-							continue
-						}
-						defer result.Body.Close()
-
-						logContent, err := io.ReadAll(result.Body)
-						if err != nil {
-							fmt.Println("Error reading log content:", err)
-							continue
-						}
-						// lines := strings.Split(string(logContent), "\n")
-						// lineCount := len(lines)
-						// totalLineCount += lineCount
-
-						// fmt.Printf("Number of lines in %s/%s: %d\n", *buckets.Name, *object.Key, lineCount)
-
-						// fmt.Println("These are the log lines", logLines)
-						fields := strings.Fields(string(logContent))
-
-						// bucketID := fields[0]
-						// bucketName := fields[1]
-						bucketMethod := fields[9]
-						// bucketResponseCode := fields[12]
-						// bucketMethodSize := fields[14]
-
-						sizeStrGet := fields[14]
-						size, err := strconv.ParseInt(sizeStrGet, 10, 64)
-
-						if err != nil {
-							fmt.Println("Error parsing PUT size:", err)
-							continue
-						}
-
-						switch bucketMethod {
-						case "\"GET":
-							totalGetMethods++
-							totalGetMethodSize += size
-						case "\"PUT":
-							totalPutMethods++
-							totalPutMethodSize += size
-						default:
-						}
-
-						// fmt.Printf("Log Line: %s, HTTP Method: %s\n", *object.Key, totalGetMethodSize)
-						// fmt.Printf("Log Line: %s, HTTP Method: %s\n", *object.Key, bucketMethod)
-					}
-					bucketCounts[*buckets.Name] = struct {
-						totalGetMethods    int32
-						totalPutMethods    int32
-						totalGetMethodSize int64
-						totalPutMethodSize int64
-					}{
-						totalGetMethods:    totalGetMethods,
-						totalPutMethods:    totalPutMethods,
-						totalGetMethodSize: totalGetMethodSize,
-						totalPutMethodSize: totalPutMethodSize,
-					}
-					fmt.Println("This is the bucket Name", *buckets.Name)
-
+			if len(objectList.Contents) == 0 {
+				continue
+			}
+			for _, object := range objectList.Contents {
+				downloadInput := &s3.GetObjectInput{
+					Bucket: aws.String(*buckets.Name),
+					Key:    aws.String(*object.Key),
 				}
 
-			}
+				result, err := client.GetObject(downloadInput)
+				if err != nil {
+					fmt.Println("Error downloading object", err)
+					continue
+				}
+				defer result.Body.Close()
 
-			for bucketName, counts := range bucketCounts {
-				newS3IonosResources[bucketName] = IonosS3Resources{
-					Name:               bucketName,
-					GetMethods:         counts.totalGetMethods,
-					PutMethods:         counts.totalPutMethods,
-					TotalGetMethodSize: int32(counts.totalGetMethodSize),
-					TotalPutMethodSize: int32(counts.totalPutMethodSize),
+				logContent, err := io.ReadAll(result.Body)
+				if err != nil {
+					fmt.Println("Error reading log content:", err)
+					continue
+				}
+				fields := strings.Fields(string(logContent))
+
+				bucketMethod := fields[9]
+
+				sizeStrGet := fields[14]
+				sizeStrPut := fields[16]
+				if bucketMethod == "PUT" {
+					fmt.Println("This si the PUT Method")
+				}
+				sizeGet, err := strconv.ParseInt(sizeStrGet, 10, 64)
+				sizePut, err := strconv.ParseInt(sizeStrPut, 10, 64)
+
+				if err != nil {
+					fmt.Println("Error parsing PUT size:", err)
+					continue
+				}
+				switch bucketMethod {
+				case "\"GET":
+					totalGetMethods++
+					totalGetMethodSize += sizeGet
+				case "\"PUT":
+					totalPutMethods++
+					totalPutMethodSize += sizePut
+				default:
 				}
 			}
-			IonosS3Buckets = newS3IonosResources
+			bucketCounts[*buckets.Name] = struct {
+				totalGetMethods    int32
+				totalPutMethods    int32
+				totalGetMethodSize int64
+				totalPutMethodSize int64
+			}{
+				totalGetMethods:    totalGetMethods,
+				totalPutMethods:    totalPutMethods,
+				totalGetMethodSize: totalGetMethodSize,
+				totalPutMethodSize: totalPutMethodSize,
+			}
+			fmt.Println("This is the bucket Name", *buckets.Name)
+		}
+
+	}
+
+	for bucketName, counts := range bucketCounts {
+		newS3IonosResources[bucketName] = IonosS3Resources{
+			Name:               bucketName,
+			GetMethods:         counts.totalGetMethods,
+			PutMethods:         counts.totalPutMethods,
+			TotalGetMethodSize: int32(counts.totalGetMethodSize),
+			TotalPutMethodSize: int32(counts.totalPutMethodSize),
 		}
 	}
-	// CalculateS3Totals(m)
+	IonosS3Buckets = newS3IonosResources
 	// time.Sleep(time.Duration(cycletime) * time.Second)
 }
+
+// CalculateS3Totals(m)
 
 // func CalculateS3Totals(m *sync.RWMutex) {
 // 	var (

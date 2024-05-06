@@ -46,12 +46,11 @@ type s3Collector struct {
 	s3TotalNumberOfPutRequestsMetric *prometheus.GaugeVec
 }
 
-var mutex *sync.RWMutex
+// var mutex *sync.RWMutex
 
 func newLBCollector(m *sync.RWMutex) *lbCollector {
-	mutex = m
 	return &lbCollector{
-		mutex: &sync.RWMutex{},
+		mutex: m,
 		nlbsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_networkloadbalancer_amount",
 			Help: "Shows the number of active Network Loadbalancers in an IONOS datacenter",
@@ -90,9 +89,8 @@ func newLBCollector(m *sync.RWMutex) *lbCollector {
 // You must create a constructor for you collector that
 // initializes every descriptor and returns a pointer to the collector
 func newIonosCollector(m *sync.RWMutex) *ionosCollector {
-	mutex = m
 	return &ionosCollector{
-		mutex: &sync.RWMutex{},
+		mutex: m,
 		coresMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dc_cores_amount",
 			Help: "Shows the number of currently active cores in an IONOS datacenter",
@@ -125,9 +123,8 @@ func newIonosCollector(m *sync.RWMutex) *ionosCollector {
 }
 
 func newS3Collector(m *sync.RWMutex) *s3Collector {
-	mutex = m
 	return &s3Collector{
-		mutex: &sync.RWMutex{},
+		mutex: m,
 		s3TotalGetMethodSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_size_of_get_requests_in_bytes",
 			Help: "Gives the total size of s3 GET HTTP Request in Bytes",
@@ -194,23 +191,21 @@ func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 	collector.mutex.RLock()
 	defer collector.mutex.RUnlock()
 
-	collector.s3TotalGetMethodSizeMetric.Reset()
-	collector.s3TotalPutMethodSizeMetric.Reset()
-	collector.s3TotalNumberOfGetRequestsMetric.Reset()
-	collector.s3TotalNumberOfPutRequestsMetric.Reset()
-
 	for s3Name, s3Resources := range IonosS3Buckets {
+		collector.s3TotalGetMethodSizeMetric.Reset()
+		collector.s3TotalPutMethodSizeMetric.Reset()
+		collector.s3TotalNumberOfGetRequestsMetric.Reset()
+		collector.s3TotalNumberOfPutRequestsMetric.Reset()
 		collector.s3TotalGetMethodSizeMetric.WithLabelValues(s3Name).Set(float64(s3Resources.TotalGetMethodSize))
 		collector.s3TotalPutMethodSizeMetric.WithLabelValues(s3Name).Set(float64(s3Resources.TotalPutMethodSize))
 		collector.s3TotalNumberOfGetRequestsMetric.WithLabelValues(s3Name).Set(float64(s3Resources.GetMethods))
 		collector.s3TotalNumberOfPutRequestsMetric.WithLabelValues(s3Name).Set(float64(s3Resources.PutMethods))
 
+		collector.s3TotalGetMethodSizeMetric.Collect(ch)
+		collector.s3TotalPutMethodSizeMetric.Collect(ch)
+		collector.s3TotalNumberOfGetRequestsMetric.Collect(ch)
+		collector.s3TotalNumberOfPutRequestsMetric.Collect(ch)
 	}
-
-	collector.s3TotalGetMethodSizeMetric.Collect(ch)
-	collector.s3TotalPutMethodSizeMetric.Collect(ch)
-	collector.s3TotalNumberOfGetRequestsMetric.Collect(ch)
-	collector.s3TotalNumberOfPutRequestsMetric.Collect(ch)
 
 }
 
@@ -294,7 +289,7 @@ var httpRequestsTotal = prometheus.NewCounterVec(
 )
 
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
-	PrintDCTotals(mutex)
+	// PrintDCTotals(mutex)
 	httpRequestsTotal.WithLabelValues("/healthcheck", r.Method).Inc()
 	w.WriteHeader(http.StatusOK)
 	io.WriteString(w, "OK")

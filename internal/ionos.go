@@ -92,7 +92,7 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 		IonosDatacenters = newIonosDatacenters
 		LoadbalancerCollector(apiClient)
 		IPCollectResources(apiClient)
-		S3CollectResources()
+		// S3CollectResources()
 		m.Unlock()
 		CalculateDCTotals(m)
 		time.Sleep(time.Duration(cycletime) * time.Second)

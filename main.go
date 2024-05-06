@@ -11,9 +11,10 @@ import (
 )
 
 var (
-	mutex           = &sync.RWMutex{} // Mutex to sync access to the Daatcenter map
-	exporterPort    string            // Port to be used for exposing the metrics
-	ionos_api_cycle int32             // Cycle time in seconds to query the IONOS API for changes, not th ePrometheus scraping intervall
+	dcMutex         = &sync.RWMutex{} // Mutex to sync access to the Datacenter map
+	s3Mutex         = &sync.RWMutex{}
+	exporterPort    string // Port to be used for exposing the metrics
+	ionos_api_cycle int32  // Cycle time in seconds to query the IONOS API for changes, not th ePrometheus scraping intervall
 )
 
 func main() {
@@ -26,11 +27,11 @@ func main() {
 		ionos_api_cycle = int32(cycletime)
 	}
 	// internal.IPCollectResources()
-	go internal.CollectResources(mutex, ionos_api_cycle)
-	// go internal.S3CollectResources(mutex, ionos_api_cycle)
+	go internal.CollectResources(dcMutex, ionos_api_cycle)
+	go internal.S3CollectResources(s3Mutex, ionos_api_cycle)
 
 	//internal.PrintDCResources(mutex)
-	internal.StartPrometheus(mutex)
+	internal.StartPrometheus(dcMutex)
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/healthcheck", http.HandlerFunc(internal.HealthCheck))
 	log.Fatal(http.ListenAndServe(":"+exporterPort, nil))

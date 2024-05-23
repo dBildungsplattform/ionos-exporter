@@ -9,6 +9,8 @@ COPY go.sum .
 
 RUN go mod download
 
+RUN go mod tidy
+
 FROM build_deps AS build
 
 COPY . .

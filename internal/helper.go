@@ -2,9 +2,11 @@ package internal
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	aws "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -51,4 +53,21 @@ func HasLogsFolder(client *s3.S3, bucketName string) bool {
 	}
 
 	return len(result.Contents) > 0
+}
+
+func GetHeadBucket(client *s3.S3, bucketName string) error {
+	input := &s3.HeadBucketInput{
+		Bucket: aws.String(bucketName),
+	}
+	_, err := client.HeadBucket(input)
+	if err != nil {
+		if reqErr, ok := err.(awserr.RequestFailure); ok && reqErr.StatusCode() == 403 {
+			log.Printf("Skipping bucket %s due to Forbidden error: %v\n", bucketName, err)
+			return err
+		}
+		log.Printf("Problem getting the location for bucket %s: %v\n", bucketName, err)
+		return err
+	}
+	log.Printf("Bucket %s exists and is accessible\n", bucketName)
+	return nil
 }

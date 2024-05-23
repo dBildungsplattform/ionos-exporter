@@ -71,7 +71,6 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 	oldStdout := os.Stdout
 	defer func() { os.Stdout = oldStdout }()
 	os.Stdout = file
-	fmt.Println("ACESSEKEY", accessKey)
 	if accessKey == "" || secretKey == "" {
 		fmt.Println("AWS credentials are not set in the environment variables.")
 		return

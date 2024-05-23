@@ -49,18 +49,13 @@ spec:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: aws-credentials-secret
-                  key: accessKey
+                  name: {{ .Values.ionos_credentials_secret_name }}
+                  key: {{ .Values.ionos_s3_credentials_access_key }}
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: aws-credentials-secret
-                  key: secretKey
-            - name: IONOS_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.ionos_credentials_secret_token }}
-                  key: {{ .Values.ionos_credentials_token_key }}
+                  name: {{ .Values.ionos_credentials_secret_name }}
+                  key: {{ .Values.ionos_s3_credentials_secret_key }}
             - name: IONOS_USERNAME
               valueFrom:
                 secretKeyRef:

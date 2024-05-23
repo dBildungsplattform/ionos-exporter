@@ -6,7 +6,6 @@ import (
 	"os"
 	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -225,7 +224,7 @@ func processBucket(client *s3.S3, bucketName string) {
 
 				logContent, err := io.ReadAll(result.Body)
 
-				logLine := strings.Fields(string(logContent))
+				// logLine := strings.Fields(string(logContent))
 
 				if err != nil {
 					fmt.Println("Problem reading the body", err)

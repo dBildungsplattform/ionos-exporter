@@ -10,6 +10,8 @@ image:
 imagePullSecrets: []
 
 # credentials
+ionos_credentials_secret_token: "ionos-exporter-token"
+ionos_credentials_token_key: "token"
 ionos_credentials_secret_name: "ionos-exporter-credentials"
 ionos_credentials_username_key: "username"
 ionos_credentials_password_key: "password"

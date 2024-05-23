@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,28 +17,39 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
+type EndpointConfig struct {
+	Region    string
+	AccessKey string
+	SecretKey string
+	Endpoint  string
+}
+
 var (
-	TotalGetMethods    int32 = 0
-	TotalGetMethodSize int64 = 0
-	TotalPutMethodSize int64 = 0
-	TotalPutMethods    int32 = 0
-	IonosS3Buckets           = make(map[string]IonosS3Resources)
+	// Global totals
+	TotalMetrics = Metrics{}
+	// IonosS3Buckets
+	IonosS3Buckets = make(map[string]Metrics)
 )
 
-type IonosS3Resources struct {
-	Name               string
-	GetMethods         int32
-	PutMethods         int32
-	HeadMethods        int32
-	PostMethods        int32
-	TotalGetMethodSize int32
-	TotalPutMethodSize int32
+type Metrics struct {
+	Methods       map[string]int32
+	RequestSizes  map[string]int64
+	ResponseSizes map[string]int64
 }
+
+const (
+	MethodGET  = "GET"
+	MethodPUT  = "PUT"
+	MethodPOST = "POST"
+	MethodHEAD = "HEAD"
+)
 
 const (
 	objectPerPage = 100
 	maxConcurrent = 10
 )
+
+var metricsMutex sync.Mutex
 
 func createS3ServiceClient(region, accessKey, secretKey, endpoint string) (*s3.S3, error) {
 	sess, err := session.NewSession(&aws.Config{
@@ -52,42 +64,48 @@ func createS3ServiceClient(region, accessKey, secretKey, endpoint string) (*s3.S
 }
 
 func S3CollectResources(m *sync.RWMutex, cycletime int32) {
-	// accessKey := os.Getenv("IONOS_ACCESS_KEY")
-	// secretKey := os.Getenv("IONOS_SECRET_KEY")
-
+	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 	file, _ := os.Create("S3ioutput.txt")
 	defer file.Close()
 
 	oldStdout := os.Stdout
 	defer func() { os.Stdout = oldStdout }()
 	os.Stdout = file
-	//TODO YAML konfiguration
-	// Define endpoint configurations
-	endpoints := map[string]struct {
-		Region, AccessKey, SecretKey, Endpoint string
-	}{
-		"de":           {"de", "", "+", "https://s3-eu-central-1.ionoscloud.com"},
-		"eu-central-2": {"eu-central-2", "", "+", "https://s3-eu-central-2.ionoscloud.com"},
-
-		// Add more endpoints as needed
+	fmt.Println("ACESSEKEY", accessKey)
+	if accessKey == "" || secretKey == "" {
+		fmt.Println("AWS credentials are not set in the environment variables.")
+		return
+	}
+	endpoints := map[string]EndpointConfig{
+		"de": {
+			Region:    "de",
+			AccessKey: accessKey,
+			SecretKey: secretKey,
+			Endpoint:  "https://s3-eu-central-1.ionoscloud.com",
+		},
+		"eu-central-2": {
+			Region:    "eu-central-2",
+			AccessKey: accessKey,
+			SecretKey: secretKey,
+			Endpoint:  "https://s3-eu-central-2.ionoscloud.com",
+		},
 	}
 
-	var wg sync.WaitGroup
 	semaphore := make(chan struct{}, maxConcurrent)
-
 	for {
+		var wg sync.WaitGroup
 		for endpoint, config := range endpoints {
+
 			if _, exists := IonosS3Buckets[endpoint]; exists {
 				continue
 			}
-
 			client, err := createS3ServiceClient(config.Region, config.AccessKey, config.SecretKey, config.Endpoint)
 
 			if err != nil {
 				fmt.Printf("Erropr creating service client for endpoint %s: %v\n", endpoint, err)
 				continue
 			}
-
 			fmt.Println("Using service client for endpoint:", endpoint)
 
 			result, err := client.ListBuckets(nil)
@@ -97,40 +115,56 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 				continue
 			}
 
-			wg.Add(len(result.Buckets))
-
 			for _, bucket := range result.Buckets {
+				bucketName := *bucket.Name
+				wg.Add(1)
+				if err := GetHeadBucket(client, bucketName); err != nil {
+					if reqErr, ok := err.(awserr.RequestFailure); ok && reqErr.StatusCode() == 403 {
+						wg.Done()
+						continue
+					}
+					fmt.Println("Error checking the bucket head:", err)
+					wg.Done()
+					continue
+				}
+
 				semaphore <- struct{}{}
 				go func(bucketName string) {
 					defer func() {
 						<-semaphore
 						wg.Done()
 					}()
-
 					processBucket(client, bucketName)
 				}(*bucket.Name)
+				// wg.Wait() //when we want sequentiel here wait for bucket to finish
 			}
 
 		}
+		fmt.Println("Before the wait")
 		wg.Wait()
-		CalculateS3Totals(m)
-		fmt.Println("This is end of before sleep")
-
+		fmt.Println("After the wait")
+		fmt.Println("This is before sleep")
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
 
 }
 
 func processBucket(client *s3.S3, bucketName string) {
-	var (
-		totalGetMethods    int32 = 0
-		totalPutMethods    int32 = 0
-		totalGetMethodSize int64 = 0
-		totalPutMethodSize int64 = 0
-	)
+	// var logEntryRegex = regexp.MustCompile(`(?)(GET|PUT|HEAD|POST) .+? (\d+) (\d+)`)
+	// var logEntryRegex = regexp.MustCompile(`(\w+) \/[^"]*" \d+ \S+ (\d+) - \d+ (\d+)`)
+	var logEntryRegex = regexp.MustCompile(`(GET|PUT|HEAD|POST) \/[^"]*" \d+ \S+ (\d+|-) (\d+|-) \d+ (\d+|-)`)
 
+	// fmt.Println("Regex Pattern:", logEntryRegex.String())
+
+	metrics := Metrics{
+		Methods:       make(map[string]int32),
+		RequestSizes:  make(map[string]int64),
+		ResponseSizes: make(map[string]int64),
+	}
+
+	semaphore := make(chan struct{}, maxConcurrent)
+	var wg sync.WaitGroup
 	continuationToken := ""
-
 	for {
 		objectList, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
 			Bucket:            aws.String(bucketName),
@@ -145,6 +179,11 @@ func processBucket(client *s3.S3, bucketName string) {
 				case "NoSuchBucket":
 					fmt.Printf("bucket %s does not exist\n", bucketName)
 				default:
+					if awserr, ok := err.(awserr.Error); ok {
+						if awserr.Code() == "AccessDenied" {
+							fmt.Println("ACCESS DENIED")
+						}
+					}
 					fmt.Printf("error listing objects in bucket %s: %s\n", bucketName, aerr.Message())
 				}
 			}
@@ -157,89 +196,74 @@ func processBucket(client *s3.S3, bucketName string) {
 		}
 
 		for _, object := range objectList.Contents {
-			downloadInput := &s3.GetObjectInput{
-				Bucket: aws.String(bucketName),
-				Key:    aws.String(*object.Key),
-			}
+			wg.Add(1)
+			semaphore <- struct{}{}
+			go func(bucketNme, objectkey string) {
+				defer func() {
+					<-semaphore
+					wg.Done()
+				}()
 
-			result, err := client.GetObject(downloadInput)
+				downloadInput := &s3.GetObjectInput{
+					Bucket: aws.String(bucketName),
+					Key:    aws.String(*object.Key),
+				}
 
-			if err != nil {
-				fmt.Println("Error downloading object", err)
-				continue
-			}
-			defer result.Body.Close()
+				result, err := client.GetObject(downloadInput)
 
-			logContent, err := io.ReadAll(result.Body)
+				if err != nil {
+					if awsErr, ok := err.(awserr.Error); ok {
+						if awsErr.Code() == "AccessDenied" {
+							fmt.Printf("Access Denied error for object %s in bucket %s\n", *object.Key, bucketName)
+							return
+						}
+					}
+					fmt.Println("Error downloading object", err)
+					return
+				}
+				defer result.Body.Close()
 
-			if err != nil {
-				fmt.Println("Error reading log content:", err)
-				continue
-			}
+				logContent, err := io.ReadAll(result.Body)
 
-			fields := strings.Fields(string(logContent))
-			bucketMethod := fields[9]
+				logLine := strings.Fields(string(logContent))
 
-			sizeStrGet := fields[14]
-			sizeStrPut := fields[16]
-			sizeGet, err := strconv.ParseInt(sizeStrGet, 10, 64)
+				if err != nil {
+					fmt.Println("Problem reading the body", err)
+				}
 
-			if err != nil {
-				fmt.Println("Error parsing GET size:", err)
-				continue
-			}
-			sizePut, err := strconv.ParseInt(sizeStrPut, 10, 64)
+				matches := logEntryRegex.FindAllStringSubmatch(string(logContent), -1)
+				fmt.Println("Matches:", matches)
+				for _, match := range matches {
+					method := match[1]
 
-			if err != nil {
-				fmt.Println("Error parsing PUT size:", err)
-				continue
-			}
+					requestSizeStr := match[2]
+					requestSize, err := strconv.ParseInt(requestSizeStr, 10, 64)
+					if err != nil {
+						fmt.Printf("Error parsing size : %v", err)
+					}
 
-			switch bucketMethod {
-			case "\"GET":
-				totalGetMethods++
-				totalGetMethodSize += sizeGet
-			case "\"PUT":
-				totalPutMethods++
-				totalPutMethodSize += sizePut
-			default:
-			}
+					responseSizeStr := match[3]
+					responseSize, err := strconv.ParseInt(responseSizeStr, 10, 64)
+					if err != nil {
+						fmt.Printf("Error parsing size: %v", err)
+					}
+
+					metricsMutex.Lock()
+					// fmt.Println("Log line", logLine)
+
+					metrics.Methods[method]++
+					metrics.RequestSizes[method] += requestSize
+					metrics.ResponseSizes[method] += responseSize
+					metricsMutex.Unlock()
+				}
+			}(bucketName, *object.Key)
 		}
 
 		if !aws.BoolValue(objectList.IsTruncated) {
 			break
 		}
-
 		continuationToken = *objectList.NextContinuationToken
-
 	}
-	IonosS3Buckets[bucketName] = IonosS3Resources{
-		Name:               bucketName,
-		GetMethods:         totalGetMethods,
-		PutMethods:         totalPutMethods,
-		TotalGetMethodSize: int32(totalGetMethodSize),
-		TotalPutMethodSize: int32(totalPutMethodSize),
-	}
-}
-
-func CalculateS3Totals(m *sync.RWMutex) {
-	var (
-		getMethodTotal     int32
-		putMethodTotal     int32
-		getMethodSizeTotal int64
-		putMethodSizeTotal int64
-	)
-	for _, s3Resources := range IonosS3Buckets {
-		getMethodTotal += s3Resources.GetMethods
-		putMethodTotal += s3Resources.PutMethods
-		getMethodSizeTotal += int64(s3Resources.TotalGetMethodSize)
-		putMethodSizeTotal += int64(s3Resources.TotalPutMethodSize)
-	}
-	m.Lock()
-	defer m.Unlock()
-
-	TotalGetMethods = getMethodTotal
-	TotalPutMethods = putMethodTotal
-	TotalGetMethodSize = getMethodSizeTotal
-	TotalPutMethodSize = putMethodSizeTotal
+	wg.Wait()
+	IonosS3Buckets[bucketName] = metrics
 }

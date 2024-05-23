@@ -30,13 +30,13 @@ type IonosDCResources struct {
 
 func CollectResources(m *sync.RWMutex, cycletime int32) {
 
-	file, _ := os.Create("ionosoutput.txt")
+	// file, _ := os.Create("ionosoutput.txt")
 
-	defer file.Close()
+	// defer file.Close()
 
-	oldStdout := os.Stdout
-	defer func() { os.Stdout = oldStdout }()
-	os.Stdout = file
+	// oldStdout := os.Stdout
+	// defer func() { os.Stdout = oldStdout }()
+	// os.Stdout = file
 
 	err := godotenv.Load(".env")
 	if err != nil {

@@ -3,7 +3,6 @@ package internal
 import (
 	"context"
 	"fmt"
-	"os"
 
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 	"github.com/joho/godotenv"
@@ -21,13 +20,13 @@ type IonosIPResources struct {
 }
 
 func IPCollectResources(apiClient *ionoscloud.APIClient) {
-	file, _ := os.Create("Ipsoutput.txt")
+	// file, _ := os.Create("Ipsoutput.txt")
 
-	defer file.Close()
+	// defer file.Close()
 
-	oldStdout := os.Stdout
-	defer func() { os.Stdout = oldStdout }()
-	os.Stdout = file
+	// oldStdout := os.Stdout
+	// defer func() { os.Stdout = oldStdout }()
+	// os.Stdout = file
 
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -53,6 +52,6 @@ func IPCollectResources(apiClient *ionoscloud.APIClient) {
 		}
 	}
 
-	fmt.Println("Heyo")
+	// fmt.Println("Heyo")
 
 }

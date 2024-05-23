@@ -2,8 +2,6 @@ package internal
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 )
@@ -32,15 +30,15 @@ type IonosLBResources struct {
 }
 
 func LoadbalancerCollector(apiClient *ionoscloud.APIClient) {
-	fmt.Println("Hey this is the Loadbalancer Collector")
+	// fmt.Println("Hey this is the Loadbalancer Collector")
 
-	file, _ := os.Create("LoadBalancerOutput.txt")
+	// file, _ := os.Create("LoadBalancerOutput.txt")
 
-	defer file.Close()
+	// defer file.Close()
 
-	oldStdout := os.Stdout
-	defer func() { os.Stdout = oldStdout }()
-	os.Stdout = file
+	// oldStdout := os.Stdout
+	// defer func() { os.Stdout = oldStdout }()
+	// os.Stdout = file
 	datacenter, _, _ := apiClient.DataCentersApi.DatacentersGet(context.Background()).Depth(3).Execute()
 
 	newIonosLBResources := make(map[string]IonosLBResources)
@@ -58,7 +56,6 @@ func LoadbalancerCollector(apiClient *ionoscloud.APIClient) {
 			nlbRuleNames    string
 		)
 
-		fmt.Println("These are the datacenter Names", datacenter.Properties.Name)
 		albList, _, _ := apiClient.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
 		nlbList, _, _ := apiClient.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
 		natList, _, _ := apiClient.NATGatewaysApi.DatacentersNatgatewaysGet(context.Background(), *datacenter.Id).Depth(3).Execute()

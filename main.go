@@ -27,8 +27,9 @@ func main() {
 		ionos_api_cycle = int32(cycletime)
 	}
 	// internal.IPCollectResources()
-	go internal.CollectResources(dcMutex, ionos_api_cycle)
+	// go internal.CollectResources(dcMutex, ionos_api_cycle)
 	go internal.S3CollectResources(s3Mutex, ionos_api_cycle)
+	// internal.ListObjects()
 
 	//internal.PrintDCResources(mutex)
 	internal.StartPrometheus(dcMutex)

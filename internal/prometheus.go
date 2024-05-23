@@ -39,11 +39,19 @@ type lbCollector struct {
 }
 
 type s3Collector struct {
-	mutex                            *sync.RWMutex
-	s3TotalGetMethodSizeMetric       *prometheus.GaugeVec
-	s3TotalPutMethodSizeMetric       *prometheus.GaugeVec
-	s3TotalNumberOfGetRequestsMetric *prometheus.GaugeVec
-	s3TotalNumberOfPutRequestsMetric *prometheus.GaugeVec
+	mutex                             *sync.RWMutex
+	s3TotalGetRequestSizeMetric       *prometheus.GaugeVec
+	s3TotalGetResponseSizeMetric      *prometheus.GaugeVec
+	s3TotalPutRequestSizeMetric       *prometheus.GaugeVec
+	s3TotalPutResponseSizeMetric      *prometheus.GaugeVec
+	s3TotalPostRequestSizeMetric      *prometheus.GaugeVec
+	s3TotalPostResponseSizeMetric     *prometheus.GaugeVec
+	s3TotalHeadRequestSizeMetric      *prometheus.GaugeVec
+	s3TotalHeadResponseSizeMetric     *prometheus.GaugeVec
+	s3TotalNumberOfGetRequestsMetric  *prometheus.GaugeVec
+	s3TotalNumberOfPutRequestsMetric  *prometheus.GaugeVec
+	s3TotalNumberOfPostRequestsMetric *prometheus.GaugeVec
+	s3TotalNumberOfHeadRequestsMetric *prometheus.GaugeVec
 }
 
 // var mutex *sync.RWMutex
@@ -122,25 +130,60 @@ func newIonosCollector(m *sync.RWMutex) *ionosCollector {
 	}
 }
 
+// maybe I should not define for every single one of methods an metric
+// but like export the method_name also and just say total_request_size..
+// and it will show it for that method?
 func newS3Collector(m *sync.RWMutex) *s3Collector {
 	return &s3Collector{
 		mutex: m,
-		s3TotalGetMethodSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "s3_total_size_of_get_requests_in_bytes",
-			Help: "Gives the total size of s3 GET HTTP Request in Bytes",
-		}, []string{"bucket_name"}),
-		s3TotalPutMethodSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "s3_total_size_of_put_requests_in_bytes",
-			Help: "Gives the total size of s3 PUT HTTP Request in Bytes",
-		}, []string{"bucket_name"}),
+		s3TotalGetRequestSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_get_request_size_in_bytes",
+			Help: "Gives the total size of s3 GET Request in Bytes in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
+		s3TotalGetResponseSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_get_response_size_in_bytes",
+			Help: "Gives the total size of s3 GET Response in Bytes in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
+		s3TotalPutRequestSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_put_request_size_in_bytes",
+			Help: "Gives the total size of s3 PUT Request in Bytes in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
+		s3TotalPutResponseSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_put_response_size_in_bytes",
+			Help: "Gives the total size of s3 PUT Response in Bytes in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
+		s3TotalPostRequestSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_post_request_size_in_bytes",
+			Help: "Gives the total size of s3 POST Request in Bytes in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
+		s3TotalPostResponseSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_post_response_size_in_bytes",
+			Help: "Gives the total size of s3 POST Response in Bytes in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
+		s3TotalHeadRequestSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_head_request_size_in_bytes",
+			Help: "Gives the total size of s3 HEAD Request in Bytes in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
+		s3TotalHeadResponseSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_head_response_size_in_bytes",
+			Help: "Gives the total size of s3 HEAD Response in Bytes in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
 		s3TotalNumberOfGetRequestsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_number_of_get_requests",
-			Help: "Gives the total number of S3 GET HTTP Requests",
-		}, []string{"bucket_name"}),
+			Help: "Gives the total number of S3 GET HTTP Requests in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
 		s3TotalNumberOfPutRequestsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_number_of_put_requests",
-			Help: "Gives the total number of S3 PUT HTTP Requests",
-		}, []string{"bucket_name"}),
+			Help: "Gives the total number of S3 PUT HTTP Requests in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
+		s3TotalNumberOfPostRequestsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_number_of_post_requests",
+			Help: "Gives the total number of S3 Post Requests in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
+		s3TotalNumberOfHeadRequestsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "s3_total_number_of_head_requests",
+			Help: "Gives the total number of S3 HEAD HTTP Requests in one Bucket",
+		}, []string{"bucket_name", "method_name"}),
 	}
 }
 
@@ -181,31 +224,90 @@ func (collector *lbCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (collector *s3Collector) Describe(ch chan<- *prometheus.Desc) {
-	collector.s3TotalGetMethodSizeMetric.Describe(ch)
-	collector.s3TotalPutMethodSizeMetric.Describe(ch)
+	collector.s3TotalGetRequestSizeMetric.Describe(ch)
+	collector.s3TotalGetResponseSizeMetric.Describe(ch)
+	collector.s3TotalPutRequestSizeMetric.Describe(ch)
+	collector.s3TotalPutResponseSizeMetric.Describe(ch)
+	collector.s3TotalPostRequestSizeMetric.Describe(ch)
+	collector.s3TotalPostResponseSizeMetric.Describe(ch)
+	collector.s3TotalHeadRequestSizeMetric.Describe(ch)
+	collector.s3TotalHeadResponseSizeMetric.Describe(ch)
 	collector.s3TotalNumberOfGetRequestsMetric.Describe(ch)
 	collector.s3TotalNumberOfPutRequestsMetric.Describe(ch)
+	collector.s3TotalNumberOfPostRequestsMetric.Describe(ch)
+	collector.s3TotalNumberOfHeadRequestsMetric.Describe(ch)
 
 }
 func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 	collector.mutex.RLock()
 	defer collector.mutex.RUnlock()
 
-	for s3Name, s3Resources := range IonosS3Buckets {
-		collector.s3TotalGetMethodSizeMetric.Reset()
-		collector.s3TotalPutMethodSizeMetric.Reset()
-		collector.s3TotalNumberOfGetRequestsMetric.Reset()
-		collector.s3TotalNumberOfPutRequestsMetric.Reset()
-		collector.s3TotalGetMethodSizeMetric.WithLabelValues(s3Name).Set(float64(s3Resources.TotalGetMethodSize))
-		collector.s3TotalPutMethodSizeMetric.WithLabelValues(s3Name).Set(float64(s3Resources.TotalPutMethodSize))
-		collector.s3TotalNumberOfGetRequestsMetric.WithLabelValues(s3Name).Set(float64(s3Resources.GetMethods))
-		collector.s3TotalNumberOfPutRequestsMetric.WithLabelValues(s3Name).Set(float64(s3Resources.PutMethods))
+	collector.s3TotalGetRequestSizeMetric.Reset()
+	collector.s3TotalGetResponseSizeMetric.Reset()
+	collector.s3TotalPutRequestSizeMetric.Reset()
+	collector.s3TotalPutResponseSizeMetric.Reset()
+	collector.s3TotalPostRequestSizeMetric.Reset()
+	collector.s3TotalPostResponseSizeMetric.Reset()
+	collector.s3TotalHeadRequestSizeMetric.Reset()
+	collector.s3TotalHeadResponseSizeMetric.Reset()
+	collector.s3TotalNumberOfGetRequestsMetric.Reset()
+	collector.s3TotalNumberOfPutRequestsMetric.Reset()
+	collector.s3TotalNumberOfPostRequestsMetric.Reset()
+	collector.s3TotalNumberOfHeadRequestsMetric.Reset()
 
-		collector.s3TotalGetMethodSizeMetric.Collect(ch)
-		collector.s3TotalPutMethodSizeMetric.Collect(ch)
-		collector.s3TotalNumberOfGetRequestsMetric.Collect(ch)
-		collector.s3TotalNumberOfPutRequestsMetric.Collect(ch)
+	for s3Name, s3Resources := range IonosS3Buckets {
+		for method, requestSize := range s3Resources.RequestSizes {
+			switch method {
+			case MethodGET:
+				collector.s3TotalGetRequestSizeMetric.WithLabelValues(s3Name, method).Set(float64(requestSize))
+			case MethodPOST:
+				collector.s3TotalPostRequestSizeMetric.WithLabelValues(s3Name, method).Set(float64(requestSize))
+			case MethodHEAD:
+				collector.s3TotalHeadRequestSizeMetric.WithLabelValues(s3Name, method).Set(float64(requestSize))
+			case MethodPUT:
+				collector.s3TotalPutRequestSizeMetric.WithLabelValues(s3Name, method).Set(float64(requestSize))
+			}
+
+		}
+		for method, responseSize := range s3Resources.ResponseSizes {
+			switch method {
+			case MethodGET:
+				collector.s3TotalGetResponseSizeMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+			case MethodPOST:
+				collector.s3TotalPostResponseSizeMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+			case MethodHEAD:
+				collector.s3TotalHeadResponseSizeMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+			case MethodPUT:
+				collector.s3TotalPutResponseSizeMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+			}
+		}
+
+		for method, responseSize := range s3Resources.Methods {
+			switch method {
+			case MethodGET:
+				collector.s3TotalNumberOfGetRequestsMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+			case MethodPOST:
+				collector.s3TotalNumberOfPostRequestsMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+			case MethodHEAD:
+				collector.s3TotalNumberOfHeadRequestsMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+			case MethodPUT:
+				collector.s3TotalNumberOfPutRequestsMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+			}
+		}
 	}
+
+	collector.s3TotalGetRequestSizeMetric.Collect(ch)
+	collector.s3TotalGetResponseSizeMetric.Collect(ch)
+	collector.s3TotalPutRequestSizeMetric.Collect(ch)
+	collector.s3TotalPutResponseSizeMetric.Collect(ch)
+	collector.s3TotalPostRequestSizeMetric.Collect(ch)
+	collector.s3TotalPostResponseSizeMetric.Collect(ch)
+	collector.s3TotalHeadRequestSizeMetric.Collect(ch)
+	collector.s3TotalHeadResponseSizeMetric.Collect(ch)
+	collector.s3TotalNumberOfGetRequestsMetric.Collect(ch)
+	collector.s3TotalNumberOfPutRequestsMetric.Collect(ch)
+	collector.s3TotalNumberOfPostRequestsMetric.Collect(ch)
+	collector.s3TotalNumberOfHeadRequestsMetric.Collect(ch)
 
 }
 

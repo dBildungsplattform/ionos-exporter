@@ -65,12 +65,12 @@ func createS3ServiceClient(region, accessKey, secretKey, endpoint string) (*s3.S
 func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	file, _ := os.Create("S3ioutput.txt")
-	defer file.Close()
+	// file, _ := os.Create("S3ioutput.txt")
+	// defer file.Close()
 
-	oldStdout := os.Stdout
-	defer func() { os.Stdout = oldStdout }()
-	os.Stdout = file
+	// oldStdout := os.Stdout
+	// defer func() { os.Stdout = oldStdout }()
+	// os.Stdout = file
 	if accessKey == "" || secretKey == "" {
 		fmt.Println("AWS credentials are not set in the environment variables.")
 		return

@@ -18,18 +18,14 @@ var (
 )
 
 func main() {
-	//internal.CollectResources(mutex, ionos_api_cycle)
-	//internal.BasicAuthExample()
 	exporterPort = internal.GetEnv("IONOS_EXPORTER_APPLICATION_CONTAINER_PORT", "9100")
 	if cycletime, err := strconv.ParseInt(internal.GetEnv("IONOS_EXPORTER_API_CYCLE", "300"), 10, 32); err != nil {
 		log.Fatal("Cannot convert IONOS_API_CYCLE to int")
 	} else {
 		ionos_api_cycle = int32(cycletime)
 	}
-	// internal.IPCollectResources()
-	// go internal.CollectResources(dcMutex, ionos_api_cycle)
+	go internal.CollectResources(dcMutex, ionos_api_cycle)
 	go internal.S3CollectResources(s3Mutex, ionos_api_cycle)
-	// internal.ListObjects()
 
 	//internal.PrintDCResources(mutex)
 	internal.StartPrometheus(dcMutex)

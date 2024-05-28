@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"regexp"
 	"strconv"
@@ -34,6 +35,8 @@ type Metrics struct {
 	Methods       map[string]int32
 	RequestSizes  map[string]int64
 	ResponseSizes map[string]int64
+	Regions       string
+	Owner         string
 }
 
 const (
@@ -44,6 +47,7 @@ const (
 )
 
 const (
+	//pagination 100 objects are on one page in a bucket
 	objectPerPage = 100
 	maxConcurrent = 10
 )
@@ -101,7 +105,7 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 			client, err := createS3ServiceClient(config.Region, config.AccessKey, config.SecretKey, config.Endpoint)
 
 			if err != nil {
-				fmt.Printf("Erropr creating service client for endpoint %s: %v\n", endpoint, err)
+				fmt.Printf("Error creating service client for endpoint %s: %v\n", endpoint, err)
 				continue
 			}
 			fmt.Println("Using service client for endpoint:", endpoint)
@@ -134,14 +138,11 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 					}()
 					processBucket(client, bucketName)
 				}(*bucket.Name)
-				// wg.Wait() //when we want sequentiel here wait for bucket to finish
+				// wg.Wait() //when we want sequential parsing we ca wait here for bucket to finish
 			}
 
 		}
-		fmt.Println("Before the wait")
 		wg.Wait()
-		fmt.Println("After the wait")
-		fmt.Println("This is before sleep")
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
 
@@ -158,11 +159,29 @@ func processBucket(client *s3.S3, bucketName string) {
 		Methods:       make(map[string]int32),
 		RequestSizes:  make(map[string]int64),
 		ResponseSizes: make(map[string]int64),
+		Regions:       "",
+		Owner:         "",
 	}
 
+	metrics.Regions = *client.Config.Region
 	semaphore := make(chan struct{}, maxConcurrent)
 	var wg sync.WaitGroup
 	continuationToken := ""
+	//owner
+	getAclInput := &s3.GetBucketAclInput{
+		Bucket: aws.String(bucketName),
+	}
+	getAclOutput, err := client.GetBucketAcl(getAclInput)
+	if err != nil {
+		log.Printf("Error retrieving ACL for bucket %s: %v\n", bucketName, err)
+		return
+	}
+
+	if len(*getAclOutput.Owner.DisplayName) > 0 {
+		metrics.Owner = *getAclOutput.Owner.DisplayName
+	} else {
+		metrics.Owner = "Unknown"
+	}
 	for {
 		objectList, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
 			Bucket:            aws.String(bucketName),
@@ -223,35 +242,31 @@ func processBucket(client *s3.S3, bucketName string) {
 
 				logContent, err := io.ReadAll(result.Body)
 
-				// logLine := strings.Fields(string(logContent))
-
 				if err != nil {
 					fmt.Println("Problem reading the body", err)
 				}
-
 				matches := logEntryRegex.FindAllStringSubmatch(string(logContent), -1)
-				fmt.Println("Matches:", matches)
 				for _, match := range matches {
 					method := match[1]
-
-					requestSizeStr := match[2]
-					requestSize, err := strconv.ParseInt(requestSizeStr, 10, 64)
-					if err != nil {
-						fmt.Printf("Error parsing size : %v", err)
-					}
-
-					responseSizeStr := match[3]
-					responseSize, err := strconv.ParseInt(responseSizeStr, 10, 64)
-					if err != nil {
-						fmt.Printf("Error parsing size: %v", err)
-					}
-
+					requestSizeStr := match[3]
+					responseSizeStr := match[2]
 					metricsMutex.Lock()
-					// fmt.Println("Log line", logLine)
+					if requestSizeStr != "-" {
+						requestSize, err := strconv.ParseInt(requestSizeStr, 10, 64)
+						if err != nil {
+							fmt.Printf("Error parsing size: %v", err)
+						}
+						metrics.RequestSizes[method] += requestSize
+					}
+					if responseSizeStr != "-" {
+						responseSize, err := strconv.ParseInt(responseSizeStr, 10, 64)
+						if err != nil {
+							fmt.Printf("Error parsing size: %v", err)
+						}
+						metrics.ResponseSizes[method] += responseSize
+					}
 
 					metrics.Methods[method]++
-					metrics.RequestSizes[method] += requestSize
-					metrics.ResponseSizes[method] += responseSize
 					metricsMutex.Unlock()
 				}
 			}(bucketName, *object.Key)

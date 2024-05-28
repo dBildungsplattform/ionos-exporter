@@ -48,7 +48,7 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 	cfgENV := ionoscloud.NewConfigurationFromEnv()
 
 	// cfg.Debug = true
-	cfgENV.Debug = true
+	cfgENV.Debug = false
 	apiClient := ionoscloud.NewAPIClient(cfgENV)
 
 	for {

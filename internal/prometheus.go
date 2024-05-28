@@ -139,51 +139,51 @@ func newS3Collector(m *sync.RWMutex) *s3Collector {
 		s3TotalGetRequestSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_get_request_size_in_bytes",
 			Help: "Gives the total size of s3 GET Request in Bytes in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalGetResponseSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_get_response_size_in_bytes",
 			Help: "Gives the total size of s3 GET Response in Bytes in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalPutRequestSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_put_request_size_in_bytes",
 			Help: "Gives the total size of s3 PUT Request in Bytes in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalPutResponseSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_put_response_size_in_bytes",
 			Help: "Gives the total size of s3 PUT Response in Bytes in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalPostRequestSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_post_request_size_in_bytes",
 			Help: "Gives the total size of s3 POST Request in Bytes in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalPostResponseSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_post_response_size_in_bytes",
 			Help: "Gives the total size of s3 POST Response in Bytes in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalHeadRequestSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_head_request_size_in_bytes",
 			Help: "Gives the total size of s3 HEAD Request in Bytes in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalHeadResponseSizeMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_head_response_size_in_bytes",
 			Help: "Gives the total size of s3 HEAD Response in Bytes in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalNumberOfGetRequestsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_number_of_get_requests",
 			Help: "Gives the total number of S3 GET HTTP Requests in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalNumberOfPutRequestsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_number_of_put_requests",
 			Help: "Gives the total number of S3 PUT HTTP Requests in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalNumberOfPostRequestsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_number_of_post_requests",
 			Help: "Gives the total number of S3 Post Requests in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 		s3TotalNumberOfHeadRequestsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "s3_total_number_of_head_requests",
 			Help: "Gives the total number of S3 HEAD HTTP Requests in one Bucket",
-		}, []string{"bucket_name", "method_name"}),
+		}, []string{"bucket", "method", "region", "owner"}),
 	}
 }
 
@@ -256,42 +256,44 @@ func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 	collector.s3TotalNumberOfHeadRequestsMetric.Reset()
 
 	for s3Name, s3Resources := range IonosS3Buckets {
+		region := s3Resources.Regions
+		owner := s3Resources.Owner
 		for method, requestSize := range s3Resources.RequestSizes {
 			switch method {
 			case MethodGET:
-				collector.s3TotalGetRequestSizeMetric.WithLabelValues(s3Name, method).Set(float64(requestSize))
+				collector.s3TotalGetRequestSizeMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(requestSize))
 			case MethodPOST:
-				collector.s3TotalPostRequestSizeMetric.WithLabelValues(s3Name, method).Set(float64(requestSize))
+				collector.s3TotalPostRequestSizeMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(requestSize))
 			case MethodHEAD:
-				collector.s3TotalHeadRequestSizeMetric.WithLabelValues(s3Name, method).Set(float64(requestSize))
+				collector.s3TotalHeadRequestSizeMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(requestSize))
 			case MethodPUT:
-				collector.s3TotalPutRequestSizeMetric.WithLabelValues(s3Name, method).Set(float64(requestSize))
+				collector.s3TotalPutRequestSizeMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(requestSize))
 			}
 
 		}
 		for method, responseSize := range s3Resources.ResponseSizes {
 			switch method {
 			case MethodGET:
-				collector.s3TotalGetResponseSizeMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+				collector.s3TotalGetResponseSizeMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(responseSize))
 			case MethodPOST:
-				collector.s3TotalPostResponseSizeMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+				collector.s3TotalPostResponseSizeMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(responseSize))
 			case MethodHEAD:
-				collector.s3TotalHeadResponseSizeMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+				collector.s3TotalHeadResponseSizeMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(responseSize))
 			case MethodPUT:
-				collector.s3TotalPutResponseSizeMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+				collector.s3TotalPutResponseSizeMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(responseSize))
 			}
 		}
 
 		for method, responseSize := range s3Resources.Methods {
 			switch method {
 			case MethodGET:
-				collector.s3TotalNumberOfGetRequestsMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+				collector.s3TotalNumberOfGetRequestsMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(responseSize))
 			case MethodPOST:
-				collector.s3TotalNumberOfPostRequestsMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+				collector.s3TotalNumberOfPostRequestsMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(responseSize))
 			case MethodHEAD:
-				collector.s3TotalNumberOfHeadRequestsMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+				collector.s3TotalNumberOfHeadRequestsMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(responseSize))
 			case MethodPUT:
-				collector.s3TotalNumberOfPutRequestsMetric.WithLabelValues(s3Name, method).Set(float64(responseSize))
+				collector.s3TotalNumberOfPutRequestsMetric.WithLabelValues(s3Name, method, region, owner).Set(float64(responseSize))
 			}
 		}
 	}

@@ -25,9 +25,6 @@ type EndpointConfig struct {
 }
 
 var (
-	// Global totals
-	TotalMetrics = Metrics{}
-	// IonosS3Buckets
 	IonosS3Buckets = make(map[string]Metrics)
 )
 
@@ -47,8 +44,7 @@ const (
 )
 
 const (
-	//pagination 100 objects are on one page in a bucket
-	objectPerPage = 100
+	objectPerPage = 1000
 	maxConcurrent = 10
 )
 
@@ -138,7 +134,7 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 					}()
 					processBucket(client, bucketName)
 				}(*bucket.Name)
-				// wg.Wait() //when we want sequential parsing we ca wait here for bucket to finish
+				//wg.Wait() //when we want sequential parsing we ca wait here for bucket to finish
 			}
 
 		}
@@ -152,8 +148,6 @@ func processBucket(client *s3.S3, bucketName string) {
 	// var logEntryRegex = regexp.MustCompile(`(?)(GET|PUT|HEAD|POST) .+? (\d+) (\d+)`)
 	// var logEntryRegex = regexp.MustCompile(`(\w+) \/[^"]*" \d+ \S+ (\d+) - \d+ (\d+)`)
 	var logEntryRegex = regexp.MustCompile(`(GET|PUT|HEAD|POST) \/[^"]*" \d+ \S+ (\d+|-) (\d+|-) \d+ (\d+|-)`)
-
-	// fmt.Println("Regex Pattern:", logEntryRegex.String())
 
 	metrics := Metrics{
 		Methods:       make(map[string]int32),
@@ -213,6 +207,7 @@ func processBucket(client *s3.S3, bucketName string) {
 		}
 
 		for _, object := range objectList.Contents {
+			objectKey := *object.Key
 			wg.Add(1)
 			semaphore <- struct{}{}
 			go func(bucketNme, objectkey string) {
@@ -223,7 +218,7 @@ func processBucket(client *s3.S3, bucketName string) {
 
 				downloadInput := &s3.GetObjectInput{
 					Bucket: aws.String(bucketName),
-					Key:    aws.String(*object.Key),
+					Key:    aws.String(objectKey),
 				}
 
 				result, err := client.GetObject(downloadInput)
@@ -231,7 +226,7 @@ func processBucket(client *s3.S3, bucketName string) {
 				if err != nil {
 					if awsErr, ok := err.(awserr.Error); ok {
 						if awsErr.Code() == "AccessDenied" {
-							fmt.Printf("Access Denied error for object %s in bucket %s\n", *object.Key, bucketName)
+							fmt.Printf("Access Denied error for object %s in bucket %s\n", objectKey, bucketName)
 							return
 						}
 					}
@@ -247,10 +242,10 @@ func processBucket(client *s3.S3, bucketName string) {
 				}
 				matches := logEntryRegex.FindAllStringSubmatch(string(logContent), -1)
 				for _, match := range matches {
+					metricsMutex.Lock()
 					method := match[1]
 					requestSizeStr := match[3]
 					responseSizeStr := match[2]
-					metricsMutex.Lock()
 					if requestSizeStr != "-" {
 						requestSize, err := strconv.ParseInt(requestSizeStr, 10, 64)
 						if err != nil {
@@ -275,8 +270,11 @@ func processBucket(client *s3.S3, bucketName string) {
 		if !aws.BoolValue(objectList.IsTruncated) {
 			break
 		}
+
 		continuationToken = *objectList.NextContinuationToken
 	}
 	wg.Wait()
+	metricsMutex.Lock()
 	IonosS3Buckets[bucketName] = metrics
+	metricsMutex.Unlock()
 }

@@ -58,7 +58,7 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 			os.Exit(1)
 		}
-		fmt.Println("DATACENTER", datacenters)
+		// fmt.Println("DATACENTER", datacenters)
 		newIonosDatacenters := make(map[string]IonosDCResources)
 		for _, datacenter := range *datacenters.Items {
 			var (
@@ -90,10 +90,9 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 
 		m.Lock()
 		IonosDatacenters = newIonosDatacenters
+		m.Unlock()
 		LoadbalancerCollector(apiClient)
 		IPCollectResources(apiClient)
-		// S3CollectResources()
-		m.Unlock()
 		CalculateDCTotals(m)
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
@@ -139,8 +138,3 @@ func PrintDCTotals(m *sync.RWMutex) {
 	log.Printf("Total - Cores: %d\n", CoresTotal)
 	log.Printf("Total - Ram: %d GB\n", RamTotal/1024)
 }
-
-//problemen mit ionos log bucket konnte nicht testen richtig
-//noch problemen mit aktuallisierung von log data wenn welche geloescht werden
-//problem sa paralelizacijom. logove mogu kalkulisati kako treba
-//ali ne tako brzo

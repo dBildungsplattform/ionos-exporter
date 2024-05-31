@@ -238,10 +238,13 @@ func (collector *s3Collector) Describe(ch chan<- *prometheus.Desc) {
 	collector.s3TotalNumberOfHeadRequestsMetric.Describe(ch)
 
 }
+
 func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 	collector.mutex.RLock()
 	defer collector.mutex.RUnlock()
 
+	// fmt.Println("Here are the Metrics inside a s3Collector in Prometheus.go before reset", IonosS3Buckets)
+	metricsMutex.Lock()
 	collector.s3TotalGetRequestSizeMetric.Reset()
 	collector.s3TotalGetResponseSizeMetric.Reset()
 	collector.s3TotalPutRequestSizeMetric.Reset()
@@ -254,8 +257,11 @@ func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 	collector.s3TotalNumberOfPutRequestsMetric.Reset()
 	collector.s3TotalNumberOfPostRequestsMetric.Reset()
 	collector.s3TotalNumberOfHeadRequestsMetric.Reset()
+	defer metricsMutex.Unlock()
 
 	for s3Name, s3Resources := range IonosS3Buckets {
+		// fmt.Println("Collecting metrics for bucket:", s3Name)
+		// fmt.Printf("Request Sizes: %v, Response Sizes: %v, Methods: %v\n", s3Resources.RequestSizes, s3Resources.ResponseSizes, s3Resources.Methods)
 		region := s3Resources.Regions
 		owner := s3Resources.Owner
 		for method, requestSize := range s3Resources.RequestSizes {
@@ -340,6 +346,7 @@ func (collector *ionosCollector) Collect(ch chan<- prometheus.Metric) {
 	collector.coresMetric.Reset()
 	collector.ramMetric.Reset()
 	collector.serverMetric.Reset()
+	// fmt.Println("Here are the metrics in ionosCollector", IonosDatacenters)
 	for dcName, dcResources := range IonosDatacenters {
 		//Write latest value for each metric in the prometheus metric channel.
 		collector.coresMetric.WithLabelValues(dcName).Set(float64(dcResources.Cores))

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 )
@@ -56,33 +57,56 @@ func LoadbalancerCollector(apiClient *ionoscloud.APIClient) {
 			nlbRuleNames    string
 		)
 
-		albList, _, _ := apiClient.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
-		nlbList, _, _ := apiClient.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+		albList, _, err := apiClient.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+		if err != nil {
+			fmt.Printf("Error retrieving ALBs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
+			continue
+		}
+		nlbList, _, err := apiClient.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+		if err != nil {
+			fmt.Printf("Error retrieving NLBs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
+			continue
+		}
 		natList, _, _ := apiClient.NATGatewaysApi.DatacentersNatgatewaysGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+		if err != nil {
+			fmt.Printf("Error retrieving NATs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
+			continue
+		}
 
 		for _, nlbRulesAndLabels := range *nlbList.Items {
+			if nlbRulesAndLabels.Properties != nil && nlbRulesAndLabels.Properties.Name != nil {
+				nlbNames = *nlbRulesAndLabels.Properties.Name
+			}
 
-			nlbNames = *nlbRulesAndLabels.Properties.Name
 			nlbForwardingRules := nlbRulesAndLabels.Entities.Forwardingrules
-			nlbTotalRulesDC = int32(len(*nlbForwardingRules.Items))
-
-			for _, ruleItems := range *nlbForwardingRules.Items {
-				nlbRuleNames = *ruleItems.Properties.Name
+			if nlbForwardingRules != nil && nlbForwardingRules.Items != nil {
+				nlbTotalRulesDC = int32(len(*nlbForwardingRules.Items))
+				for _, ruleItems := range *nlbForwardingRules.Items {
+					if ruleItems.Properties != nil && ruleItems.Properties.Name != nil {
+						nlbRuleNames = *ruleItems.Properties.Name
+					}
+				}
 			}
 		}
 
 		for _, albRulesAndLabels := range *albList.Items {
-
-			albNames = *albRulesAndLabels.Properties.Name
+			if albRulesAndLabels.Properties != nil && albRulesAndLabels.Properties.Name != nil {
+				albNames = *albRulesAndLabels.Properties.Name
+			}
 			forwardingRules := albRulesAndLabels.Entities.Forwardingrules
-			albTotalRulesDC = int32(len(*forwardingRules.Items))
+			if forwardingRules != nil && forwardingRules.Items != nil {
+				albTotalRulesDC = int32(len(*forwardingRules.Items))
 
-			for _, ruleItems := range *forwardingRules.Items {
-				for _, ruleName := range *ruleItems.Properties.HttpRules {
-					albRuleNames = *ruleName.Name
+				for _, ruleItems := range *forwardingRules.Items {
+					if ruleItems.Properties != nil && ruleItems.Properties.HttpRules != nil {
+						for _, ruleName := range *ruleItems.Properties.HttpRules {
+							if ruleName.Name != nil {
+								albRuleNames = *ruleName.Name
+							}
+						}
+					}
 				}
 			}
-
 		}
 		nlbTotalDC = int32(len(*nlbList.Items))
 		albTotalDC = int32(len(*albList.Items))

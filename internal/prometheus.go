@@ -368,10 +368,6 @@ func (collector *s3Collector) GetMutex() *sync.RWMutex {
 	return collector.mutex
 }
 
-func (collector *CustomCollector) GetMutex() *sync.RWMutex {
-	return collector.mutex
-}
-
 func StartPrometheus(m *sync.RWMutex) {
 
 	ic := newIonosCollector(m)

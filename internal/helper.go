@@ -7,8 +7,6 @@ import (
 
 	aws "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 )
 
@@ -26,19 +24,6 @@ func GetEnv(key string, fallback string) string {
 			return value
 		}
 	}
-}
-
-func NewS3ServiceClient() (*s3.S3, error) {
-	sess, err := session.NewSession(&aws.Config{
-		Region:      aws.String("eu-central-2"),
-		Credentials: credentials.NewStaticCredentials("00e556b6437d8a8d1776", "LbypY0AmotQCDDckTz+cAPFI7l0eQvSFeQ1WxKtw", ""),
-		Endpoint:    aws.String("https://s3-eu-central-2.ionoscloud.com"),
-	})
-
-	if err != nil {
-		return nil, err
-	}
-	return s3.New(sess), nil
 }
 
 func HasLogsFolder(client *s3.S3, bucketName string) bool {
@@ -70,4 +55,63 @@ func GetHeadBucket(client *s3.S3, bucketName string) error {
 	}
 	log.Printf("Bucket %s exists and is accessible\n", bucketName)
 	return nil
+}
+
+func addTagsToBucket(client *s3.S3, bucketName string) {
+	tags := []*s3.Tag{}
+
+	switch bucketName {
+	case "nbc-bucket01-logs":
+		tags = []*s3.Tag{
+			{
+				Key:   aws.String("Tenant"),
+				Value: aws.String("Niedersachsen"),
+			},
+		}
+	case "dbp-test-bucketlogs":
+		tags = []*s3.Tag{
+			{
+				Key:   aws.String("Tenant"),
+				Value: aws.String("Brandenburg"),
+			},
+		}
+	case "dbp-test4logbucket":
+		tags = []*s3.Tag{
+			{
+				Key:   aws.String("Tenant"),
+				Value: aws.String("Thueringen"),
+			},
+		}
+	case "dbp-test5-logbucket":
+		tags = []*s3.Tag{
+			{
+				Key:   aws.String("Tenant"),
+				Value: aws.String("HPIBosscloud"),
+			},
+		}
+	default:
+		tags = []*s3.Tag{
+
+			{
+				Key:   aws.String("Enviroment"),
+				Value: aws.String("Production"),
+			},
+			{
+				Key:   aws.String("Namespace"),
+				Value: aws.String("Some Namespace"),
+			},
+		}
+	}
+	input := &s3.PutBucketTaggingInput{
+		Bucket: aws.String(bucketName),
+		Tagging: &s3.Tagging{
+			TagSet: tags,
+		},
+	}
+	_, err := client.PutBucketTagging(input)
+	if err != nil {
+		log.Printf("Error adding tags to bucket %s: %v\n", bucketName, err)
+	} else {
+		fmt.Printf("Successfully added tags to bucekt %s\n", bucketName)
+	}
 }

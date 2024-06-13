@@ -19,7 +19,7 @@ var (
 
 func main() {
 	exporterPort = internal.GetEnv("IONOS_EXPORTER_APPLICATION_CONTAINER_PORT", "9100")
-	if cycletime, err := strconv.ParseInt(internal.GetEnv("IONOS_EXPORTER_API_CYCLE", "900"), 10, 32); err != nil {
+	if cycletime, err := strconv.ParseInt(internal.GetEnv("IONOS_EXPORTER_API_CYCLE", "200"), 10, 32); err != nil {
 		log.Fatal("Cannot convert IONOS_API_CYCLE to int")
 	} else {
 		ionos_api_cycle = int32(cycletime)

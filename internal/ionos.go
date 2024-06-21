@@ -80,31 +80,38 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error when calling `ServersApi.DatacentersServersGet``: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+				continue
 			}
-			albList, _, err := apiClient.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+			albList, resp, err := apiClient.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
 			if err != nil {
 				fmt.Printf("Error retrieving ALBs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
+				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 				continue
 			}
-			nlbList, _, err := apiClient.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+			nlbList, resp, err := apiClient.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
 			if err != nil {
 				fmt.Printf("Error retrieving NLBs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
+				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 				continue
 			}
-			natList, _, _ := apiClient.NATGatewaysApi.DatacentersNatgatewaysGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+			natList, _, err := apiClient.NATGatewaysApi.DatacentersNatgatewaysGet(context.Background(), *datacenter.Id).Depth(3).Execute()
 			if err != nil {
 				fmt.Printf("Error retrieving NATs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
+				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 				continue
 			}
 
-			ipBlocks, _, err := apiClient.IPBlocksApi.IpblocksGet(context.Background()).Depth(3).Execute()
-
+			ipBlocks, resp, err := apiClient.IPBlocksApi.IpblocksGet(context.Background()).Depth(3).Execute()
 			if err != nil {
-				fmt.Println("Problem with the API Client")
+				fmt.Printf("Error retrieving IPs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
+				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+				continue
 			}
 
 			for _, ips := range *ipBlocks.Items {
-				totalIPs += *ips.Properties.Size
+				if ips.Properties != nil && ips.Properties.Size != nil {
+					totalIPs += *ips.Properties.Size
+				}
 			}
 
 			for _, nlbRulesAndLabels := range *nlbList.Items {
@@ -174,7 +181,6 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 		m.Lock()
 		IonosDatacenters = newIonosDatacenters
 		m.Unlock()
-		// IPCollectResources(apiClient)
 		CalculateDCTotals(m)
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}

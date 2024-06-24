@@ -62,6 +62,7 @@ func createS3ServiceClient(region, accessKey, secretKey, endpoint string) (*s3.S
 		Endpoint:    aws.String(endpoint),
 	})
 	if err != nil {
+		log.Printf("Error establishing session with AWS S3 Endpoint: %v", err)
 		return nil, fmt.Errorf("error establishing session with AWS S3 Endpoint: %s", err)
 	}
 	return s3.New(sess), nil
@@ -77,7 +78,7 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 	// defer func() { os.Stdout = oldStdout }()
 	// os.Stdout = file
 	if accessKey == "" || secretKey == "" {
-		fmt.Println("AWS credentials are not set in the environment variables.")
+		log.Println("AWS credentials are nto set in the enviroment variables.")
 		return
 	}
 	endpoints := map[string]EndpointConfig{
@@ -139,7 +140,7 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 						if reqErr, ok := err.(awserr.RequestFailure); ok && reqErr.StatusCode() == 403 {
 							return
 						}
-						fmt.Println("Error checking the bucket head:", err)
+						log.Println("Error checking the bucket head:", err)
 						return
 					}
 					semaphore <- struct{}{}
@@ -207,11 +208,11 @@ func processBucket(client *s3.S3, bucketName string) {
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Code() {
 				case "NoSuchBucket":
-					fmt.Printf("bucket %s does not exist\n", bucketName)
+					log.Printf("bucket %s does not exist\n", bucketName)
 				default:
 					if awserr, ok := err.(awserr.Error); ok {
 						if awserr.Code() == "AccessDenied" {
-							fmt.Println("Bucket not in current endpoint skipping")
+							log.Println("Bucket not in current endpoint skipping")
 						}
 					}
 					fmt.Printf("error listing objects in bucket %s: %s\n", bucketName, aerr.Message())
@@ -221,7 +222,7 @@ func processBucket(client *s3.S3, bucketName string) {
 		}
 		//check if the bucket has any objects in logs folder
 		if len(objectList.Contents) == 0 {
-			fmt.Printf("bucket %s does not contain any objects with the 'logs/' prefix\n", bucketName)
+			log.Printf("bucket %s does not contain any objects with the 'logs/' prefix\n", bucketName)
 			return
 		}
 		//iterate through those objects and check the input of logs
@@ -244,17 +245,17 @@ func processBucket(client *s3.S3, bucketName string) {
 				if err != nil {
 					if awsErr, ok := err.(awserr.Error); ok {
 						if awsErr.Code() == "AccessDenied" {
-							fmt.Printf("Access Denied error for object %s in bucket %s\n", objectKey, bucketName)
+							log.Printf("Access Denied error for object %s in bucket %s\n", objectKey, bucketName)
 							return
 						}
 					}
-					fmt.Println("Error downloading object", err)
+					log.Println("Error downloading object", err)
 					return
 				}
 				defer result.Body.Close()
 				logContent, err := io.ReadAll(result.Body)
 				if err != nil {
-					fmt.Println("Problem reading the body", err)
+					log.Println("Problem reading the body", err)
 				}
 				//check for matches using regex we are checkign for GET, PUT, POST, HEAD
 				//and their response/request size
@@ -270,14 +271,14 @@ func processBucket(client *s3.S3, bucketName string) {
 					if requestSizeStr != "-" {
 						requestSize, err := strconv.ParseInt(requestSizeStr, 10, 64)
 						if err != nil {
-							fmt.Printf("Error parsing size: %v", err)
+							log.Printf("Error parsing size: %v", err)
 						}
 						metrics.RequestSizes[method] += requestSize
 					}
 					if responseSizeStr != "-" {
 						responseSize, err := strconv.ParseInt(responseSizeStr, 10, 64)
 						if err != nil {
-							fmt.Printf("Error parsing size: %v", err)
+							log.Printf("Error parsing size: %v", err)
 						}
 						metrics.ResponseSizes[method] += responseSize
 					}
@@ -316,17 +317,17 @@ func getBucketTags(client *s3.S3, bucketName string) {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case s3.ErrCodeNoSuchBucket:
-				fmt.Printf("Bucket %s does not exist\n", bucketName)
+				log.Printf("Bucket %s does not exist\n", bucketName)
 				return
 			case "NoSuchTagSet":
-				fmt.Printf("No tags set for Bucket %s\n", bucketName)
+				log.Printf("No tags set for Bucket %s\n", bucketName)
 				return
 			default:
-				fmt.Printf("Error retrieving tags in false endpoint for bucket %s: %s\n", bucketName, aerr.Message())
+				log.Printf("Error retrieving tags in false endpoint for bucket %s: %s\n", bucketName, aerr.Message())
 				return
 			}
 		} else {
-			fmt.Printf("Error retrieving tags for bucket %s: %s\n", bucketName, err.Error())
+			log.Printf("Error retrieving tags for bucket %s: %s\n", bucketName, err.Error())
 			return
 		}
 	}

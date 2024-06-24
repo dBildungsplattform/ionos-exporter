@@ -33,7 +33,7 @@ type ionosCollector struct {
 	dcDCNATMetric    *prometheus.GaugeVec
 	dcNLBRulesMetric *prometheus.GaugeVec
 	dcALBRulesMetric *prometheus.GaugeVec
-	dcTotalIpsMetric *prometheus.GaugeVec
+	dcTotalIpsMetric prometheus.Gauge
 }
 
 type s3Collector struct {
@@ -119,10 +119,10 @@ func newIonosCollector(m *sync.RWMutex) *ionosCollector {
 			Name: "ionos_total_nmumber_of_alb_rules",
 			Help: "Shows the total number of ALB Rules in IONOS Account",
 		}, []string{"alb_rules"}),
-		dcTotalIpsMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		dcTotalIpsMetric: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "ionos_total_number_of_ips",
 			Help: "Shows the number of Ips in a IONOS",
-		}, []string{"ip_amount"}),
+		}),
 	}
 }
 
@@ -226,7 +226,7 @@ func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 			fmt.Printf("No tags found for bucket %s\n", s3Name)
 			continue
 		}
-
+		//tags of buckets change to tags you have defined on s3 buckets
 		enviroment := tags["Enviroment"]
 		namespace := tags["Namespace"]
 		tenant := tags["Tenant"]
@@ -324,7 +324,6 @@ func (collector *ionosCollector) Collect(ch chan<- prometheus.Metric) {
 	collector.albsMetric.Reset()
 	collector.natsMetric.Reset()
 	collector.nlbsMetric.Reset()
-	collector.dcTotalIpsMetric.Reset()
 	// fmt.Println("Here are the metrics in ionosCollector", IonosDatacenters)
 	for dcName, dcResources := range IonosDatacenters {
 		//Write latest value for each metric in the prometheus metric channel.
@@ -334,7 +333,7 @@ func (collector *ionosCollector) Collect(ch chan<- prometheus.Metric) {
 		collector.nlbsMetric.WithLabelValues(dcName, dcResources.NLBName, dcResources.NLBRuleName).Set(float64(dcResources.NLBs))
 		collector.albsMetric.WithLabelValues(dcName, dcResources.ALBName, dcResources.ALBRuleName).Set(float64(dcResources.ALBs))
 		collector.natsMetric.WithLabelValues(dcName).Set(float64(dcResources.NATs))
-		collector.dcTotalIpsMetric.WithLabelValues(dcName).Set(float64(dcResources.TotalIPs))
+		collector.dcTotalIpsMetric.Set(float64(dcResources.TotalIPs))
 
 	}
 

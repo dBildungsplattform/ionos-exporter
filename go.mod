@@ -13,6 +13,9 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/ionos-cloud/sdk-go-bundle/products/dbaas/psql v0.1.0 // indirect
+	github.com/ionos-cloud/sdk-go-bundle/shared v0.1.0 // indirect
+	github.com/ionos-cloud/sdk-go-dbaas-postgres v1.1.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
@@ -23,4 +26,7 @@ require (
 	golang.org/x/sys v0.21.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
+	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
+	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

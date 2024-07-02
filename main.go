@@ -13,6 +13,7 @@ import (
 var (
 	dcMutex         = &sync.RWMutex{} // Mutex to sync access to the Datacenter map
 	s3Mutex         = &sync.RWMutex{}
+	pgMutex         = &sync.RWMutex{}
 	exporterPort    string // Port to be used for exposing the metrics
 	ionos_api_cycle int32  // Cycle time in seconds to query the IONOS API for changes, not th ePrometheus scraping intervall
 )
@@ -26,6 +27,8 @@ func main() {
 	}
 	go internal.CollectResources(dcMutex, ionos_api_cycle)
 	go internal.S3CollectResources(s3Mutex, ionos_api_cycle)
+	// internal.PgGet()
+	go internal.Testpsql(pgMutex, ionos_api_cycle)
 
 	//internal.PrintDCResources(mutex)
 	internal.StartPrometheus(dcMutex)

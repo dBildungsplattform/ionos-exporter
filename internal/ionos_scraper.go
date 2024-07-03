@@ -82,73 +82,32 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 				continue
 			}
-			albList, resp, err := apiClient.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+
+			albList, err := fetchApplicationLoadbalancers(apiClient, &datacenter)
 			if err != nil {
 				fmt.Printf("Error retrieving ALBs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
-				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 				continue
 			}
-			nlbList, resp, err := apiClient.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+			nlbList, err := fetchNetworkLoadBalancers(apiClient, &datacenter)
 			if err != nil {
 				fmt.Printf("Error retrieving NLBs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
-				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 				continue
 			}
-			natList, _, err := apiClient.NATGatewaysApi.DatacentersNatgatewaysGet(context.Background(), *datacenter.Id).Depth(3).Execute()
+			natList, err := fetchNATGateways(apiClient, &datacenter)
 			if err != nil {
 				fmt.Printf("Error retrieving NATs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
-				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 				continue
 			}
-
-			ipBlocks, resp, err := apiClient.IPBlocksApi.IpblocksGet(context.Background()).Depth(3).Execute()
+			ipBlocks, err := fetchIPBlocks(apiClient)
 			if err != nil {
 				fmt.Printf("Error retrieving IPs for datacenter %s: %v\n", *datacenter.Properties.Name, err)
-				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 				continue
 			}
 
-			for _, ips := range *ipBlocks.Items {
-				if ips.Properties != nil && ips.Properties.Size != nil {
-					totalIPs += *ips.Properties.Size
-				}
-			}
+			totalIPs = processIPBlocks(ipBlocks)
+			nlbNames, nlbTotalRulesDC = processNetworkLoadBalancers(nlbList)
+			albNames, albTotalRulesDC = processApplicationLoadBalancers(albList)
 
-			for _, nlbRulesAndLabels := range *nlbList.Items {
-				if nlbRulesAndLabels.Properties != nil && nlbRulesAndLabels.Properties.Name != nil {
-					nlbNames = *nlbRulesAndLabels.Properties.Name
-				}
-
-				nlbForwardingRules := nlbRulesAndLabels.Entities.Forwardingrules
-				if nlbForwardingRules != nil && nlbForwardingRules.Items != nil {
-					nlbTotalRulesDC = int32(len(*nlbForwardingRules.Items))
-					for _, ruleItems := range *nlbForwardingRules.Items {
-						if ruleItems.Properties != nil && ruleItems.Properties.Name != nil {
-							nlbRuleNames = *ruleItems.Properties.Name
-						}
-					}
-				}
-			}
-
-			for _, albRulesAndLabels := range *albList.Items {
-				if albRulesAndLabels.Properties != nil && albRulesAndLabels.Properties.Name != nil {
-					albNames = *albRulesAndLabels.Properties.Name
-				}
-				forwardingRules := albRulesAndLabels.Entities.Forwardingrules
-				if forwardingRules != nil && forwardingRules.Items != nil {
-					albTotalRulesDC = int32(len(*forwardingRules.Items))
-
-					for _, ruleItems := range *forwardingRules.Items {
-						if ruleItems.Properties != nil && ruleItems.Properties.HttpRules != nil {
-							for _, ruleName := range *ruleItems.Properties.HttpRules {
-								if ruleName.Name != nil {
-									albRuleNames = *ruleName.Name
-								}
-							}
-						}
-					}
-				}
-			}
 			nlbTotalDC = int32(len(*nlbList.Items))
 			albTotalDC = int32(len(*albList.Items))
 			natTotalDC = int32(len(*natList.Items))
@@ -181,7 +140,7 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 		m.Lock()
 		IonosDatacenters = newIonosDatacenters
 		m.Unlock()
-		CalculateDCTotals(m)
+		// CalculateDCTotals(m)
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
 }
@@ -225,4 +184,138 @@ func PrintDCTotals(m *sync.RWMutex) {
 	log.Printf("Total - Servers: %d\n", ServerTotal)
 	log.Printf("Total - Cores: %d\n", CoresTotal)
 	log.Printf("Total - Ram: %d GB\n", RamTotal/1024)
+}
+
+func fetchNATGateways(apiClient *ionoscloud.APIClient, datacenter *ionoscloud.Datacenter) (*ionoscloud.NatGateways, error) {
+	datacenterId := *datacenter.Id
+	natList, resp, err := apiClient.NATGatewaysApi.DatacentersNatgatewaysGet(context.Background(), datacenterId).Depth(2).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling NATGateways API: %v\n", err)
+		if resp != nil {
+			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+		} else {
+			fmt.Fprintf(os.Stderr, "No HTTP response received\n")
+		}
+		return nil, err
+	}
+
+	if natList.Items == nil {
+		return nil, fmt.Errorf("no items in resource")
+	}
+	return &natList, nil
+}
+
+func fetchNetworkLoadBalancers(apiClient *ionoscloud.APIClient, datacenter *ionoscloud.Datacenter) (*ionoscloud.NetworkLoadBalancers, error) {
+	datacenterId := *datacenter.Id
+	nlbList, resp, err := apiClient.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(context.Background(), datacenterId).Depth(2).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling NetworkLoadbalancers API: %v\n", err)
+		if resp != nil {
+			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+		} else {
+			fmt.Fprintf(os.Stderr, "No HTTP response received\n")
+		}
+		return nil, err
+	}
+
+	if nlbList.Items == nil {
+		return nil, fmt.Errorf("no items in resource")
+	}
+
+	return &nlbList, nil
+}
+
+func fetchIPBlocks(apiClient *ionoscloud.APIClient) (*ionoscloud.IpBlocks, error) {
+	ipBlocks, resp, err := apiClient.IPBlocksApi.IpblocksGet(context.Background()).Depth(2).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling IPBlocks API: %v\n", err)
+		if resp != nil {
+			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+		} else {
+			fmt.Fprintf(os.Stderr, "No HTTP response received\n")
+		}
+		return nil, err
+	}
+
+	if ipBlocks.Items == nil {
+		return nil, fmt.Errorf("no items in resource")
+	}
+
+	return &ipBlocks, nil
+}
+
+func fetchApplicationLoadbalancers(apiClient *ionoscloud.APIClient, datacenter *ionoscloud.Datacenter) (*ionoscloud.ApplicationLoadBalancers, error) {
+	datacenterId := *datacenter.Id
+	albList, resp, err := apiClient.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(context.Background(), datacenterId).Depth(2).Execute()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error when calling ApplicationLoadBalancers API: %v\n", err)
+		if resp != nil {
+			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+		} else {
+			fmt.Fprintf(os.Stderr, "No HTTP response received\n")
+		}
+		return nil, err
+	}
+
+	if albList.Items == nil {
+		return nil, fmt.Errorf("no items in resource")
+	}
+
+	return &albList, nil
+}
+
+func processIPBlocks(ipBlocks *ionoscloud.IpBlocks) int32 {
+	var totalIPs int32
+	for _, ips := range *ipBlocks.Items {
+		if ips.Properties != nil && ips.Properties.Size != nil {
+			totalIPs += *ips.Properties.Size
+		}
+	}
+	return totalIPs
+}
+
+func processNetworkLoadBalancers(nlbList *ionoscloud.NetworkLoadBalancers) (string, int32) {
+	var (
+		nlbNames        string
+		nlbTotalRulesDC int32
+	)
+
+	for _, nlb := range *nlbList.Items {
+		if nlb.Properties != nil && nlb.Properties.Name != nil {
+			nlbNames = *nlb.Properties.Name
+		}
+		nlbForwardingRules := nlb.Entities.Forwardingrules
+		if nlbForwardingRules != nil && nlbForwardingRules.Items != nil {
+			nlbTotalRulesDC = int32(len(*nlbForwardingRules.Items))
+			for _, rule := range *nlbForwardingRules.Items {
+				if rule.Properties != nil && rule.Properties.Name != nil {
+					nlbNames = *rule.Properties.Name
+				}
+			}
+		}
+	}
+	return nlbNames, nlbTotalRulesDC
+}
+
+func processApplicationLoadBalancers(albList *ionoscloud.ApplicationLoadBalancers) (string, int32) {
+	var (
+		albNames        string
+		albTotalRulesDC int32
+	)
+
+	for _, alb := range *albList.Items {
+		if alb.Properties != nil && alb.Properties.Name != nil {
+			albNames = *alb.Properties.Name
+		}
+		albForwardingRules := alb.Entities.Forwardingrules
+		if albForwardingRules != nil && albForwardingRules.Items != nil {
+			albTotalRulesDC = int32(len(*albForwardingRules.Items))
+			for _, rule := range *albForwardingRules.Items {
+				if rule.Properties != nil && rule.Properties.Name != nil {
+					albNames = *rule.Properties.Name
+				}
+			}
+		}
+	}
+	return albNames, albTotalRulesDC
 }

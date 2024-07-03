@@ -130,12 +130,10 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 						Regions:       config.Region,
 					}
 					IonosS3Buckets[bucketName] = metrics
-
 				}
 				wg.Add(1)
 				go func(client *s3.S3, bucketName string) {
 					defer wg.Done()
-					getBucketTags(client, bucketName)
 					if err := GetHeadBucket(client, bucketName); err != nil {
 						if reqErr, ok := err.(awserr.RequestFailure); ok && reqErr.StatusCode() == 403 {
 							return
@@ -143,6 +141,7 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 						log.Println("Error checking the bucket head:", err)
 						return
 					}
+					getBucketTags(client, bucketName)
 					semaphore <- struct{}{}
 					defer func() {
 						<-semaphore

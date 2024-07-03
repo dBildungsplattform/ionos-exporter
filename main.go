@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -27,13 +28,24 @@ func main() {
 	}
 	go internal.CollectResources(dcMutex, ionos_api_cycle)
 	go internal.S3CollectResources(s3Mutex, ionos_api_cycle)
-	// internal.PgGet()
-	go internal.Testpsql(pgMutex, ionos_api_cycle)
-
+	go internal.PostgresCollectResources(pgMutex, ionos_api_cycle)
+	startPrometheus()
 	//internal.PrintDCResources(mutex)
-	internal.StartPrometheus(dcMutex)
+	// internal.StartPrometheus(dcMutex)
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/healthcheck", http.HandlerFunc(internal.HealthCheck))
 	log.Fatal(http.ListenAndServe(":"+exporterPort, nil))
 
+}
+
+func startPrometheus() {
+	// Initialize and register collectors
+	ionosCollector := internal.NewIonosCollector(dcMutex)
+	s3Collector := internal.NewS3Collector(s3Mutex)
+	pgCollector := internal.NewPostgresCollector(pgMutex)
+
+	prometheus.MustRegister(ionosCollector)
+	prometheus.MustRegister(s3Collector)
+	prometheus.MustRegister(pgCollector)
+	prometheus.MustRegister(internal.HttpRequestsTotal)
 }

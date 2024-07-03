@@ -77,15 +77,13 @@ func loadConfig(filename string) (*Config, error) {
 	return &config, nil
 }
 
-func Testpsql(m *sync.RWMutex, cycletime int32) {
+func PostgresCollectResources(m *sync.RWMutex, cycletime int32) {
 	err := godotenv.Load(".env")
 	if err != nil {
 		fmt.Println("Error loading .env file")
 	}
 	cfgENV := psql.NewConfigurationFromEnv()
-
 	apiClient := psql.NewAPIClient(cfgENV)
-
 	config, err := loadConfig("config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -113,6 +111,15 @@ func processCluster(apiClient *psql.APIClient, m *sync.RWMutex, metrics []Metric
 	newIonosPostgresResources := make(map[string]IonosPostgresResources)
 
 	for _, clusters := range *datacenters.Items {
+		if clusters.Id == nil || clusters.Properties == nil {
+			fmt.Fprintf(os.Stderr, "Cluster or Cluster Properties are nil\n")
+			continue
+		}
+		clusterName := clusters.Properties.DisplayName
+		if clusterName == nil {
+			fmt.Fprintf(os.Stderr, "Cluster name is nil\n")
+			continue
+		}
 		databaseNames, err := fetchDatabases(apiClient, *clusters.Id)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to fetch databases for cluster %s: %v\n", *clusters.Properties.DisplayName, err)
@@ -146,10 +153,7 @@ func processCluster(apiClient *psql.APIClient, m *sync.RWMutex, metrics []Metric
 			Telemetry:     telemetryData,
 		}
 	}
-	// clusterName := "spsh-dev-schulportal"
 	m.Lock()
-	// fmt.Printf("Here is the telemetryData for cluster '%s': %v\n", clusterName, newIonosPostgresResources[clusterName].Telemetry)
-	// fmt.Printf("Here is the map %v", newIonosPostgresResources["telemetryData"])
 	IonosPostgresClusters = newIonosPostgresResources
 	m.Unlock()
 

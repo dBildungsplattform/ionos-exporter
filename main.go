@@ -25,7 +25,7 @@ func main() {
 	}
 	go internal.CollectResources(m, ionos_api_cycle)
 	go internal.S3CollectResources(m, ionos_api_cycle)
-	go internal.PostgresCollectResources(m, ionos_api_cycle)
+	// go internal.PostgresCollectResources(m, ionos_api_cycle)
 
 	// startPrometheus()
 	//internal.PrintDCResources(mutex)

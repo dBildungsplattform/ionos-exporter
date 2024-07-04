@@ -256,7 +256,5 @@ func fetchTelemetryMetrics(apiToken, query, clusterID string) (*TelemetryRespons
 		return nil, err
 	}
 
-	// fmt.Printf("Telemetry Response: %+v\n", telemetryResp)
-
 	return &telemetryResp, nil
 }

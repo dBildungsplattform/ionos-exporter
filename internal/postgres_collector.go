@@ -116,7 +116,6 @@ func (collector *postgresCollector) Collect(ch chan<- prometheus.Metric) {
 						continue
 					}
 				}
-				// fmt.Println("Telemetry Metric", telemetry.Metric)
 				switch telemetry.Metric["__name__"] {
 				case "ionos_dbaas_postgres_transactions:rate2m":
 					collector.postgresTransactionRateMetric.WithLabelValues(postgresName).Set(float64(metricValue))

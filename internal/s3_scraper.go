@@ -49,7 +49,7 @@ const (
 
 // how many objects to scan per page
 const (
-	objectPerPage = 100
+	objectPerPage = 1000
 	maxConcurrent = 10
 )
 
@@ -95,7 +95,7 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 			Endpoint:  "https://s3-eu-central-1.ionoscloud.com",
 		},
 	}
-
+	//buffered channel that is like a semaphore
 	semaphore := make(chan struct{}, maxConcurrent)
 	for {
 		var wg sync.WaitGroup
@@ -132,8 +132,14 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 					IonosS3Buckets[bucketName] = metrics
 				}
 				wg.Add(1)
+				fmt.Println("Processing Bucket: ", bucketName)
 				go func(client *s3.S3, bucketName string) {
 					defer wg.Done()
+					defer func() {
+						if r := recover(); r != nil {
+							log.Printf("Recovered in goroutine: %v", r)
+						}
+					}()
 					if err := GetHeadBucket(client, bucketName); err != nil {
 						if reqErr, ok := err.(awserr.RequestFailure); ok && reqErr.StatusCode() == 403 {
 							return
@@ -141,8 +147,9 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 						log.Println("Error checking the bucket head:", err)
 						return
 					}
-					getBucketTags(client, bucketName)
+					//acquiring slot in semaphore blocking if the buffer is full
 					semaphore <- struct{}{}
+					//release the semaphore when the goroutine completes
 					defer func() {
 						<-semaphore
 					}()
@@ -166,8 +173,8 @@ func processBucket(client *s3.S3, bucketName string) {
 	var wg sync.WaitGroup
 	var logEntryRegex = regexp.MustCompile(`(GET|PUT|HEAD|POST) \/[^"]*" \d+ \S+ (\d+|-) (\d+|-) \d+ (\d+|-)`)
 	semaphore := make(chan struct{}, maxConcurrent)
-	continuationToken := ""
 
+	getBucketTags(client, bucketName)
 	metrics := Metrics{
 		Methods:       make(map[string]int32),
 		RequestSizes:  make(map[string]int64),
@@ -176,6 +183,8 @@ func processBucket(client *s3.S3, bucketName string) {
 		Owner:         "",
 	}
 	metrics.Regions = *client.Config.Region
+
+	continuationToken := ""
 
 	//getting owner
 	getAclInput := &s3.GetBucketAclInput{
@@ -191,11 +200,10 @@ func processBucket(client *s3.S3, bucketName string) {
 	} else {
 		metrics.Owner = "Unknown"
 	}
+
 	//main loop
 	for {
 
-		//get all objects in a bucket use max keys defined in global scope and go through
-		//the pages of a bucket
 		objectList, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
 			Bucket:            aws.String(bucketName),
 			Prefix:            aws.String("logs/"),
@@ -219,7 +227,6 @@ func processBucket(client *s3.S3, bucketName string) {
 			}
 			return
 		}
-		//check if the bucket has any objects in logs folder
 		if len(objectList.Contents) == 0 {
 			log.Printf("bucket %s does not contain any objects with the 'logs/' prefix\n", bucketName)
 			return
@@ -297,7 +304,9 @@ func processBucket(client *s3.S3, bucketName string) {
 	wg.Wait()
 	//make it thread safe with a mutex
 	metricsMutex.Lock()
+	fmt.Println("METRICS", IonosS3Buckets)
 	IonosS3Buckets[bucketName] = metrics
+	fmt.Println("METRICS", IonosS3Buckets)
 	metricsMutex.Unlock()
 }
 

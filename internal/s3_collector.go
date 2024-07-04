@@ -96,8 +96,6 @@ func (collector *s3Collector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
-	collector.mutex.RLock()
-	defer collector.mutex.RUnlock()
 
 	metricsMutex.Lock()
 	collector.s3TotalGetRequestSizeMetric.Reset()
@@ -114,22 +112,19 @@ func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 	collector.s3TotalNumberOfHeadRequestsMetric.Reset()
 
 	defer metricsMutex.Unlock()
-
 	for s3Name, s3Resources := range IonosS3Buckets {
-
 		region := s3Resources.Regions
 		owner := s3Resources.Owner
 		tags, ok := TagsForPrometheus[s3Name]
 		if !ok {
 			fmt.Printf("No tags found for bucket %s\n", s3Name)
-			continue
 		}
 		//tags of buckets change to tags you have defined on s3 buckets
 		enviroment := tags["Enviroment"]
 		namespace := tags["Namespace"]
 		tenant := tags["Tenant"]
-
 		for method, requestSize := range s3Resources.RequestSizes {
+
 			switch method {
 			case MethodGET:
 				collector.s3TotalGetRequestSizeMetric.WithLabelValues(s3Name, method, region, owner, enviroment, namespace, tenant).Set(float64(requestSize))
@@ -143,6 +138,7 @@ func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 
 		}
 		for method, responseSize := range s3Resources.ResponseSizes {
+
 			switch method {
 			case MethodGET:
 				collector.s3TotalGetResponseSizeMetric.WithLabelValues(s3Name, method, region, owner, enviroment, namespace, tenant).Set(float64(responseSize))

@@ -24,20 +24,20 @@ func (collector *postgresCollector) GetMutex() *sync.RWMutex {
 	return collector.mutex
 }
 
-// func StartPrometheus(m *sync.RWMutex) {
-// 	dcMutex := &sync.RWMutex{}
-// 	s3Mutex := &sync.RWMutex{}
-// 	pgMutex := &sync.RWMutex{}
+func StartPrometheus(m *sync.RWMutex) {
+	dcMutex := &sync.RWMutex{}
+	s3Mutex := &sync.RWMutex{}
+	pgMutex := &sync.RWMutex{}
 
-// 	ionosCollector := NewIonosCollector(dcMutex)
-// 	s3Collector := NewS3Collector(s3Mutex)
-// 	pgCollector := NewPostgresCollector(pgMutex)
+	ionosCollector := NewIonosCollector(dcMutex)
+	s3Collector := NewS3Collector(s3Mutex)
+	pgCollector := NewPostgresCollector(pgMutex)
 
-// 	prometheus.MustRegister(ionosCollector)
-// 	prometheus.MustRegister(s3Collector)
-// 	prometheus.MustRegister(pgCollector)
-// 	prometheus.MustRegister(HttpRequestsTotal)
-// }
+	prometheus.MustRegister(ionosCollector)
+	prometheus.MustRegister(s3Collector)
+	prometheus.MustRegister(pgCollector)
+	prometheus.MustRegister(HttpRequestsTotal)
+}
 
 var HttpRequestsTotal = prometheus.NewCounterVec(
 	prometheus.CounterOpts{

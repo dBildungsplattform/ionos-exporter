@@ -45,6 +45,3 @@ metrics:
   - name: ionos_dbaas_postgres_user_tables_idx_scan
     description: Number of index scans per table/schema.
     type: gauge
-  - name: ionos_dbaas_postgres_user_tables_seq_scan
-    description: Number of sequential scans per table/schema. A high number of sequential scans may indicate that an index should be added to improve performance.
-    type: gauge

@@ -75,6 +75,15 @@ spec:
               value: {{ .Values.containerPort | quote }}
             - name: IONOS_EXPORTER_API_CYCLE
               value: {{ .Values.ionosApiCycle | quote }}
+        volumeMounts:
+          - name: config-volume
+            readOnly: true
+            mountPath: /etc/ionos-exporter/config.yaml
+            subPath: config.yaml
+      volumes:
+        - name: config-volume
+          configMap: 
+            name: ionos-exporter-config
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

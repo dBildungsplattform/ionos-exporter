@@ -4,4 +4,4 @@ metadata:
   name: ionos-exporter-config
 data:
   config.yaml: |-
-    {{ .Files.Get "charts/ionos-exporter/config.yaml" | nindent 4 }}
+    {{ .Files.Get "config.yaml" | nindent 4 }}

@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"sync"
 
 	//"time"
@@ -115,10 +114,10 @@ func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 	for s3Name, s3Resources := range IonosS3Buckets {
 		region := s3Resources.Regions
 		owner := s3Resources.Owner
-		tags, ok := TagsForPrometheus[s3Name]
-		if !ok {
-			fmt.Printf("No tags found for bucket %s\n", s3Name)
-		}
+		tags := TagsForPrometheus[s3Name]
+		// if !ok {
+		// 	// fmt.Printf("No tags found for bucket %s\n", s3Name)
+		// }
 		//tags of buckets change to tags you have defined on s3 buckets
 		enviroment := tags["Enviroment"]
 		namespace := tags["Namespace"]

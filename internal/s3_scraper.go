@@ -252,9 +252,7 @@ func processBucket(client *s3.S3, bucketName string) {
 	wg.Wait()
 	//make it thread safe with a mutex
 	metricsMutex.Lock()
-	fmt.Println("METRICS", IonosS3Buckets)
 	IonosS3Buckets[bucketName] = metrics
-	fmt.Println("METRICS", IonosS3Buckets)
 	metricsMutex.Unlock()
 }
 

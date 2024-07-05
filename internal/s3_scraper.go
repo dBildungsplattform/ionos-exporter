@@ -234,65 +234,13 @@ func processBucket(client *s3.S3, bucketName string) {
 		//iterate through those objects and check the input of logs
 		//here we are using concurrency
 		for _, object := range objectList.Contents {
-
-			objectKey := *object.Key
 			wg.Add(1)
 			semaphore <- struct{}{}
-			go func(bucketNme, objectkey string) {
-				defer func() {
-					<-semaphore
-					wg.Done()
-				}()
-				downloadInput := &s3.GetObjectInput{
-					Bucket: aws.String(bucketName),
-					Key:    aws.String(objectKey),
-				}
-				result, err := client.GetObject(downloadInput)
-				if err != nil {
-					if awsErr, ok := err.(awserr.Error); ok {
-						if awsErr.Code() == "AccessDenied" {
-							log.Printf("Access Denied error for object %s in bucket %s\n", objectKey, bucketName)
-							return
-						}
-					}
-					log.Println("Error downloading object", err)
-					return
-				}
-				defer result.Body.Close()
-				logContent, err := io.ReadAll(result.Body)
-				if err != nil {
-					log.Println("Problem reading the body", err)
-				}
-				//check for matches using regex we are checkign for GET, PUT, POST, HEAD
-				//and their response/request size
-				matches := logEntryRegex.FindAllStringSubmatch(string(logContent), -1)
-
-				for _, match := range matches {
-					metricsMutex.Lock()
-
-					method := match[1]
-					requestSizeStr := match[3]
-					responseSizeStr := match[2]
-
-					if requestSizeStr != "-" {
-						requestSize, err := strconv.ParseInt(requestSizeStr, 10, 64)
-						if err != nil {
-							log.Printf("Error parsing size: %v", err)
-						}
-						metrics.RequestSizes[method] += requestSize
-					}
-					if responseSizeStr != "-" {
-						responseSize, err := strconv.ParseInt(responseSizeStr, 10, 64)
-						if err != nil {
-							log.Printf("Error parsing size: %v", err)
-						}
-						metrics.ResponseSizes[method] += responseSize
-					}
-
-					metrics.Methods[method]++
-					metricsMutex.Unlock()
-				}
-			}(bucketName, *object.Key)
+			go func(object *s3.Object) {
+				defer wg.Done()
+				defer func() { <-semaphore }()
+				processObject(client, bucketName, object, logEntryRegex, &metrics)
+			}(object)
 		}
 		//if there is no more pages break the loop
 		if !aws.BoolValue(objectList.IsTruncated) {
@@ -348,4 +296,50 @@ func getBucketTags(client *s3.S3, bucketName string) {
 	TagsForPrometheus[bucketName] = tags
 	metricsMutex.Unlock()
 
+}
+
+func processObject(client *s3.S3, bucketName string, object *s3.Object, logEntryRegex *regexp.Regexp, metrics *Metrics) {
+	downloadInput := &s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(*object.Key),
+	}
+	result, err := client.GetObject(downloadInput)
+	if err != nil {
+		if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == "AccessDenied" {
+			log.Printf("Access Denied error for object %s in bucket %s\n", *object.Key, bucketName)
+			return
+		}
+		log.Println("Error downloading object", err)
+		return
+	}
+	defer result.Body.Close()
+
+	logContent, err := io.ReadAll(result.Body)
+	if err != nil {
+		log.Println("Problem reading the body", err)
+		return
+	}
+	matches := logEntryRegex.FindAllStringSubmatch(string(logContent), -1)
+
+	for _, match := range matches {
+		metricsMutex.Lock()
+		method := match[1]
+		requestSizeStr := match[3]
+		responseSizeStr := match[2]
+
+		if requestSizeStr != "-" {
+			requestSize, err := strconv.ParseInt(requestSizeStr, 10, 64)
+			if err == nil {
+				metrics.RequestSizes[method] += requestSize
+			}
+		}
+		if responseSizeStr != "-" {
+			responseSize, err := strconv.ParseInt(responseSizeStr, 10, 64)
+			if err == nil {
+				metrics.ResponseSizes[method] += responseSize
+			}
+		}
+		metrics.Methods[method]++
+		metricsMutex.Unlock()
+	}
 }

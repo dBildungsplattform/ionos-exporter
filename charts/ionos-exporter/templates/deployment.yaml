@@ -46,6 +46,11 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
+            - name: CONFIG_CONTENT
+              valueFrom:
+                configMapKeyRef:
+                  name: ionos-exporter-config
+                  key: config.yaml
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:

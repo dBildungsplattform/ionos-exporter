@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -80,80 +81,76 @@ func PostgresCollectResources(m *sync.RWMutex, cycletime int32) {
 	// if err != nil {
 	// 	fmt.Println("Error loading .env file")
 	// }
-	// cfgENV := psql.NewConfigurationFromEnv()
-	// apiClient := psql.NewAPIClient(cfgENV)
-	// // config, err := loadConfig("config.yaml")
-	// // if err != nil {
-	// // 	log.Fatalf("Failed to load config: %v", err)
-	// // }
+	cfgENV := psql.NewConfigurationFromEnv()
+	apiClient := psql.NewAPIClient(cfgENV)
+	config, err := loadConfig("./charts/ionos-exporter/config.yaml")
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
 
-	// for {
-	// 	var wg sync.WaitGroup
-	// 	for _, tenant := range config.Tenants {
-	// 		wg.Add(1)
-	// 		go func(tenant Tenant) {
-	// 			defer wg.Done()
-	// 			processCluster(apiClient, m, config.Metrics)
-	// 		}(tenant)
-	// 	}
-	// 	wg.Wait()
-	// 	time.Sleep(time.Duration(cycletime) * time.Second)
-	// }
-	// }
+	for {
+		processCluster(apiClient, m, config.Metrics)
+		time.Sleep(time.Duration(cycletime) * time.Second)
+	}
+}
 
-	// func processCluster(apiClient *psql.APIClient, m *sync.RWMutex, metrics []Metric) {
-	// 	datacenters, err := fetchClusters(apiClient)
-	// 	if err != nil {
-	// 		fmt.Fprintf(os.Stderr, "Failed to fetch clusters: %v\n", err)
-	// 	}
-	// 	newIonosPostgresResources := make(map[string]IonosPostgresResources)
+func processCluster(apiClient *psql.APIClient, m *sync.RWMutex, metrics []Metric) {
+	datacenters, err := fetchClusters(apiClient)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to fetch clusters: %v\n", err)
+	}
+	if datacenters == nil || datacenters.Items == nil {
+		fmt.Fprintf(os.Stderr, "datacenters or datacenters Items are nil\n")
+		return
+	}
+	newIonosPostgresResources := make(map[string]IonosPostgresResources)
 
-	// 	for _, clusters := range *datacenters.Items {
-	// 		if clusters.Id == nil || clusters.Properties == nil {
-	// 			fmt.Fprintf(os.Stderr, "Cluster or Cluster Properties are nil\n")
-	// 			continue
-	// 		}
-	// 		clusterName := clusters.Properties.DisplayName
-	// 		if clusterName == nil {
-	// 			fmt.Fprintf(os.Stderr, "Cluster name is nil\n")
-	// 			continue
-	// 		}
-	// 		databaseNames, err := fetchDatabases(apiClient, *clusters.Id)
-	// 		if err != nil {
-	// 			fmt.Fprintf(os.Stderr, "Failed to fetch databases for cluster %s: %v\n", *clusters.Properties.DisplayName, err)
-	// 			continue
-	// 		}
-	// 		databaseOwner, err := fetchOwner(apiClient, *clusters.Id)
-	// 		if err != nil {
-	// 			fmt.Fprintf(os.Stderr, "Failed to fetch owner for database %s: %v\n", *clusters.Properties.DisplayName, err)
-	// 			continue
-	// 		}
+	for _, clusters := range *datacenters.Items {
+		if clusters.Id == nil || clusters.Properties == nil {
+			fmt.Fprintf(os.Stderr, "Cluster or Cluster Properties are nil\n")
+			continue
+		}
+		clusterName := clusters.Properties.DisplayName
+		if clusterName == nil {
+			fmt.Fprintf(os.Stderr, "Cluster name is nil\n")
+			continue
+		}
+		databaseNames, err := fetchDatabases(apiClient, *clusters.Id)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to fetch databases for cluster %s: %v\n", *clusters.Properties.DisplayName, err)
+			continue
+		}
+		databaseOwner, err := fetchOwner(apiClient, *clusters.Id)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to fetch owner for database %s: %v\n", *clusters.Properties.DisplayName, err)
+			continue
+		}
 
-	// 		telemetryData := make([]TelemetryMetric, 0)
+		telemetryData := make([]TelemetryMetric, 0)
 
-	// 		for _, metricConfig := range metrics {
-	// 			telemetryResp, err := fetchTelemetryMetrics(os.Getenv("IONOS_TOKEN"), fmt.Sprintf("%s{postgres_cluster=\"%s\"}", metricConfig.Name, *clusters.Id), *clusters.Id)
-	// 			if err != nil {
-	// 				fmt.Fprintf(os.Stderr, "Failed to fetch telemetry metrics for cluster %s: %v\n", *clusters.Id, err)
-	// 				continue
-	// 			}
-	// 			telemetryData = append(telemetryData, telemetryResp.Data.Result...)
-	// 		}
+		for _, metricConfig := range metrics {
+			telemetryResp, err := fetchTelemetryMetrics(os.Getenv("IONOS_TOKEN"), fmt.Sprintf("%s{postgres_cluster=\"%s\"}", metricConfig.Name, *clusters.Id), *clusters.Id)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to fetch telemetry metrics for cluster %s: %v\n", *clusters.Id, err)
+				continue
+			}
+			telemetryData = append(telemetryData, telemetryResp.Data.Result...)
+		}
 
-	// 		// fmt.Printf("Here are the database names %v", databaseNames)
-	// 		newIonosPostgresResources[*clusters.Properties.DisplayName] = IonosPostgresResources{
-	// 			ClusterName:   *clusters.Properties.DisplayName,
-	// 			CPU:           *clusters.Properties.Cores,
-	// 			RAM:           *clusters.Properties.Ram,
-	// 			Storage:       *clusters.Properties.StorageSize,
-	// 			DatabaseNames: databaseNames,
-	// 			Owner:         databaseOwner,
-	// 			Telemetry:     telemetryData,
-	// 		}
-	// 	}
-	// 	m.Lock()
-	// 	IonosPostgresClusters = newIonosPostgresResources
-	// 	m.Unlock()
+		// fmt.Printf("Here are the database names %v", databaseNames)
+		newIonosPostgresResources[*clusters.Properties.DisplayName] = IonosPostgresResources{
+			ClusterName:   *clusters.Properties.DisplayName,
+			CPU:           *clusters.Properties.Cores,
+			RAM:           *clusters.Properties.Ram,
+			Storage:       *clusters.Properties.StorageSize,
+			DatabaseNames: databaseNames,
+			Owner:         databaseOwner,
+			Telemetry:     telemetryData,
+		}
+	}
+	m.Lock()
+	IonosPostgresClusters = newIonosPostgresResources
+	m.Unlock()
 
 }
 

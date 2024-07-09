@@ -96,6 +96,9 @@ func (collector *s3Collector) Describe(ch chan<- *prometheus.Desc) {
 
 func (collector *s3Collector) Collect(ch chan<- prometheus.Metric) {
 
+	collector.mutex.RLock()
+	defer collector.mutex.RUnlock()
+
 	metricsMutex.Lock()
 	collector.s3TotalGetRequestSizeMetric.Reset()
 	collector.s3TotalGetResponseSizeMetric.Reset()

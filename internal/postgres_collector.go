@@ -8,8 +8,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-//"time"
-
 type postgresCollector struct {
 	mutex                               *sync.RWMutex
 	postgresTotalRamMetric              *prometheus.GaugeVec
@@ -30,43 +28,43 @@ func NewPostgresCollector(m *sync.RWMutex) *postgresCollector {
 		postgresTotalRamMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgres_total_ram_in_cluster",
 			Help: "Gives the total ammount of allocated RAM in cluster",
-		}, []string{"clusterName", "owner", "db"}),
+		}, []string{"cluster", "owner", "db"}),
 		postgresTotalCPUMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgres_total_cpu_in_cluster",
 			Help: "Gives a total amount of CPU Cores in Cluster",
-		}, []string{"clusterName", "owner", "db"}),
+		}, []string{"cluster", "owner", "db"}),
 		postgresTotalStorageMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgres_total_storage_in_cluster",
 			Help: "Gives a total amount of Storage in Cluster",
-		}, []string{"clusterName", "owner", "db"}),
+		}, []string{"cluster", "owner", "db"}),
 		postgresTransactionRateMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgres_transactions:rate2m",
 			Help: "Gives a Transaction Rate in postgres cluster in 2m",
-		}, []string{"clusterName"}),
+		}, []string{"cluster"}),
 		postgresTotalStorageBytesMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgres_total_storage_metric",
 			Help: "Gives a Total Storage Metric in Bytes",
-		}, []string{"clusterName"}),
+		}, []string{"cluster"}),
 		postgresAvailableStorageBytesMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgres_available_storage_metric",
 			Help: "Gives a Available Storage Metric in Bytes",
-		}, []string{"clusterName"}),
+		}, []string{"cluster"}),
 		postgresCpuRateMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgress_cpu_rate5m",
 			Help: "Gives a CPU Rate (Average Utilization) over the past 5 Minutes",
-		}, []string{"clusterName"}),
+		}, []string{"cluster"}),
 		postgresDiskIOMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgres_disk_io_time_weighted_seconds_rate5m",
 			Help: "The rate of disk I/O time, in seconds, over a five-minute period.",
-		}, []string{"clusterName"}),
+		}, []string{"cluster"}),
 		postgresLoadMetric: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgres_load5",
 			Help: "Linux load average for the last 5 minutes.",
-		}, []string{"clusterName"}),
+		}, []string{"cluster"}),
 		postgresTotalMemoryAvailableBytes: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "ionos_dbaas_postgres_memory_available_bytes",
 			Help: "Available memory in bytes",
-		}, []string{"clusterName"}),
+		}, []string{"cluster"}),
 	}
 }
 

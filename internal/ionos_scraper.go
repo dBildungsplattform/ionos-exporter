@@ -56,7 +56,7 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `DataCentersApi.DatacentersGet``: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
-			os.Exit(1)
+			continue
 		}
 		// fmt.Println("DATACENTER", datacenters)
 		newIonosDatacenters := make(map[string]IonosDCResources)
@@ -80,7 +80,7 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error when calling `ServersApi.DatacentersServersGet``: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
-				continue
+				os.Exit(1)
 			}
 
 			albList, err := fetchApplicationLoadbalancers(apiClient, &datacenter)
@@ -186,6 +186,17 @@ func PrintDCTotals(m *sync.RWMutex) {
 	log.Printf("Total - Ram: %d GB\n", RamTotal/1024)
 }
 
+/*
+Retrieves a list of NAT Gateways which are associated with specific datanceter using the ionoscloud API Client
+
+Parameters:
+apiClient: An instance of APIClient for making API Requests
+datacenter Pointer to an ionoscloud.Datacenter object representing the target datacenter.
+
+Returns:
+- *ionoscloud.NatGateways: A pointer to ionoscloud.NatGateways which has NAT List or an error if it fails
+If successful, it returns a pointer to the fetched NATs, otherwise it returns nil and an error message.
+*/
 func fetchNATGateways(apiClient *ionoscloud.APIClient, datacenter *ionoscloud.Datacenter) (*ionoscloud.NatGateways, error) {
 	datacenterId := *datacenter.Id
 	natList, resp, err := apiClient.NATGatewaysApi.DatacentersNatgatewaysGet(context.Background(), datacenterId).Depth(2).Execute()
@@ -205,6 +216,17 @@ func fetchNATGateways(apiClient *ionoscloud.APIClient, datacenter *ionoscloud.Da
 	return &natList, nil
 }
 
+/*
+Retrieves a list of Network Load Balancers (NLB) which are associated with specific datanceter using the ionoscloud API Client
+
+Parameters:
+apiClient: An instance of APIClient for making API Requests
+datacenter Pointer to an ionoscloud.Datacenter object representing the target datacenter.
+
+Returns:
+- *ionoscloud.NetworkLoadBalancers: A pointer to ionoscloud.ApplicationLoadbalancers which has ALB List or an error if it fails
+If successful, it returns a pointer to the fetched ALBs, otherwise it returns nil and an error message.
+*/
 func fetchNetworkLoadBalancers(apiClient *ionoscloud.APIClient, datacenter *ionoscloud.Datacenter) (*ionoscloud.NetworkLoadBalancers, error) {
 	datacenterId := *datacenter.Id
 	nlbList, resp, err := apiClient.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(context.Background(), datacenterId).Depth(2).Execute()
@@ -225,6 +247,18 @@ func fetchNetworkLoadBalancers(apiClient *ionoscloud.APIClient, datacenter *iono
 	return &nlbList, nil
 }
 
+/*
+retrievers a list of IP Blocks from ionoscloud API
+
+Parameters:
+  - apiClient: An instance of ionoscloud.APIClient
+
+Returns:
+
+- pointer to ionoscloud.IpBlocks containing the fetched IP blocks, or nil if there are no items
+in the resource.
+- error: An error if there was an issue making the API call or if no IP blocks were found.
+*/
 func fetchIPBlocks(apiClient *ionoscloud.APIClient) (*ionoscloud.IpBlocks, error) {
 	ipBlocks, resp, err := apiClient.IPBlocksApi.IpblocksGet(context.Background()).Depth(2).Execute()
 	if err != nil {
@@ -244,6 +278,17 @@ func fetchIPBlocks(apiClient *ionoscloud.APIClient) (*ionoscloud.IpBlocks, error
 	return &ipBlocks, nil
 }
 
+/*
+Retrieves a list of Application Load Balancers (ALB) which are associated with specific datanceter using the ionoscloud API Client
+
+Parameters:
+apiClient: An instance of APIClient for making API Requests
+datacenter Pointer to an ionoscloud.Datacenter object representing the target datacenter.
+
+Returns:
+- *ionoscloud.ApplicationLoadBalancers: A pointer to ionoscloud.ApplicationLoadbalancers which has ALB List or an error if it fails
+If successful, it returns a pointer to the fetched ALBs, otherwise it returns nil and an error message.
+*/
 func fetchApplicationLoadbalancers(apiClient *ionoscloud.APIClient, datacenter *ionoscloud.Datacenter) (*ionoscloud.ApplicationLoadBalancers, error) {
 	datacenterId := *datacenter.Id
 	albList, resp, err := apiClient.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(context.Background(), datacenterId).Depth(2).Execute()
@@ -264,16 +309,42 @@ func fetchApplicationLoadbalancers(apiClient *ionoscloud.APIClient, datacenter *
 	return &albList, nil
 }
 
+/*
+Calculates total number of IP addresses from a list of IP Blocks
+
+Parameters:
+- ipBlocks: A pointer to ionoscloud.IpBlocks containing a list of IP blocks to process.
+
+Returns:
+- The total number of Ip addresses summed from all IP Blocks
+*/
 func processIPBlocks(ipBlocks *ionoscloud.IpBlocks) int32 {
+
 	var totalIPs int32
+
 	for _, ips := range *ipBlocks.Items {
 		if ips.Properties != nil && ips.Properties.Size != nil {
 			totalIPs += *ips.Properties.Size
+		} else {
+			fmt.Println("Ip Properties or Ip Properties Size is nil")
 		}
 	}
 	return totalIPs
 }
 
+/*
+process a list of Network Load Balancers to extract information about NLB names
+and total forwarding rules across all NLBs.
+
+Parameter:
+  - a pointer to the NetworkLoadbalaners containig a list of NLBs to process
+
+Returns:
+  - string: names of loadbalancers
+  - int32: total number of forwarding rules
+
+If any NLB or its associated forwarding rules are nil, they are skipped during processing.
+*/
 func processNetworkLoadBalancers(nlbList *ionoscloud.NetworkLoadBalancers) (string, int32) {
 	var (
 		nlbNames        string
@@ -297,6 +368,17 @@ func processNetworkLoadBalancers(nlbList *ionoscloud.NetworkLoadBalancers) (stri
 	return nlbNames, nlbTotalRulesDC
 }
 
+/*
+process a list of Application Load Balancers ALBs to extract information about ALB names and
+total forwarding rules across al ALBs
+
+Parameters:
+  - a pointer to ApplicationLoadBalancers containing a list of ALBs to process
+
+Returns:
+  - string: names of application loadbalancers
+  - int32: total number of forwarding rules
+*/
 func processApplicationLoadBalancers(albList *ionoscloud.ApplicationLoadBalancers) (string, int32) {
 	var (
 		albNames        string

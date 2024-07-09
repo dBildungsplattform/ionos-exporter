@@ -18,6 +18,8 @@ var (
 	DataCenters      int32 = 0
 	IonosDatacenters       = make(map[string]IonosDCResources) //Key is the name of the datacenter
 	depth            int32 = 1                                 //Controls the detail depth of the response objects.
+	retryTime        int32 = 5                                 // time in s till Ionos API is called again in case of err
+	retryNumber      int32 = 3                                 // Total num of retrys till os.Exit(1) is called
 )
 
 type IonosDCResources struct {
@@ -27,16 +29,36 @@ type IonosDCResources struct {
 	DCId    string // UUID od the datacenter
 }
 
+func callIonosDataCentersApiWithRetry(apiClient *ionoscloud.APIClient) (ionoscloud.Datacenters, *ionoscloud.APIResponse, error) {
+	var datacenters ionoscloud.Datacenters
+	var resp *ionoscloud.APIResponse
+	var err error
+
+	for i := int32(0); i < retryNumber; i++ {
+		datacenters, resp, err = apiClient.DataCentersApi.DatacentersGet(context.Background()).Depth(depth).Execute()
+		if err == nil {
+			return datacenters, resp, err
+		}
+		fmt.Println("Attempt", i+1, "to call DataCentersApi failed:", err)
+		time.Sleep(time.Duration(retryTime) * time.Second)
+	}
+
+	fmt.Printf("Retrying to call DataCentersApi failed %v times\n", retryNumber)
+	return datacenters, resp, err
+}
+
 func CollectResources(m *sync.RWMutex, cycletime int32) {
 	configuration := ionoscloud.NewConfigurationFromEnv()
 	apiClient := ionoscloud.NewAPIClient(configuration)
 	for {
-		datacenters, resp, err := apiClient.DataCentersApi.DatacentersGet(context.Background()).Depth(depth).Execute()
+
+		datacenters, resp, err := callIonosDataCentersApiWithRetry(apiClient)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error when calling `DataCentersApi.DatacentersGet``: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Multiple Error when calling `DataCentersApi.DatacentersGet``: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
 			os.Exit(1)
 		}
+
 		newIonosDatacenters := make(map[string]IonosDCResources)
 		for _, datacenter := range *datacenters.Items {
 			var (

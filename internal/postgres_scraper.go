@@ -84,7 +84,7 @@ func PostgresCollectResources(m *sync.RWMutex, cycletime int32) {
 	}
 	cfgENV := psql.NewConfigurationFromEnv()
 	apiClient := psql.NewAPIClient(cfgENV)
-	config, err := loadConfig("./charts/ionos-exporter/config.yaml")
+	config, err := loadConfig("/etc/ionos-exporter/config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}

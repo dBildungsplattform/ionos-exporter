@@ -22,21 +22,22 @@ var (
 )
 
 type IonosDCResources struct {
-	Cores       int32  // Amount of CPU cores in the whole DC, regardless whether it is a VM or Kubernetscluster
-	Ram         int32  // Amount of RAM in the whole DC, regardless whether it is a VM or Kubernetscluster
-	Servers     int32  // Amount of servers in the whole DC
-	DCId        string // UUID od the datacenter
-	NLBs        int32
-	ALBs        int32
-	NATs        int32
-	NLBRules    int32
-	ALBRules    int32
-	ALBName     string
-	NLBName     string
-	NLBRuleName string
-	ALBRuleName string
-	IPName      string
-	TotalIPs    int32
+	Cores                int32  // Amount of CPU cores in the whole DC, regardless whether it is a VM or Kubernetscluster
+	Ram                  int32  // Amount of RAM in the whole DC, regardless whether it is a VM or Kubernetscluster
+	Servers              int32  // Amount of servers in the whole DC
+	DCId                 string // UUID od the datacenter
+	NLBs                 int32  //Number of Networkloadbalancers
+	ALBs                 int32  //Number of Applicationloadbalanceers
+	NATs                 int32  //Number of NAT Gateways
+	NLBRules             int32  //Number of NLB Rules
+	ALBRules             int32  //Number of ALB Rueles
+	ALBName              string //ALB Name
+	NLBName              string //NLB Name
+	NLBRuleName          string //Rule name of NLB
+	ALBRuleName          string //Rule name of ALB
+	IPName               string //IP Name
+	TotalIPs             int32  //Number of total IP-s
+	TotalAPICallFailures int32
 }
 
 func CollectResources(m *sync.RWMutex, cycletime int32) {
@@ -51,36 +52,40 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 	cfgENV.Debug = false
 	apiClient := ionoscloud.NewAPIClient(cfgENV)
 
+	totalAPICallFailures := 0
 	for {
 		datacenters, resp, err := apiClient.DataCentersApi.DatacentersGet(context.Background()).Depth(depth).Execute()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `DataCentersApi.DatacentersGet``: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
+			totalAPICallFailures++
 			continue
 		}
 		// fmt.Println("DATACENTER", datacenters)
 		newIonosDatacenters := make(map[string]IonosDCResources)
 		for _, datacenter := range *datacenters.Items {
 			var (
-				coresTotalDC    int32 = 0
-				ramTotalDC      int32 = 0
-				serverTotalDC   int32 = 0
-				nlbTotalDC      int32 = 0
-				nlbTotalRulesDC int32 = 0
-				albTotalRulesDC int32 = 0
-				albTotalDC      int32 = 0
-				natTotalDC      int32 = 0
-				albNames        string
-				nlbNames        string
-				albRuleNames    string
-				nlbRuleNames    string
-				totalIPs        int32 = 0
+				coresTotalDC         int32 = 0
+				ramTotalDC           int32 = 0
+				serverTotalDC        int32 = 0
+				nlbTotalDC           int32 = 0
+				nlbTotalRulesDC      int32 = 0
+				albTotalRulesDC      int32 = 0
+				albTotalDC           int32 = 0
+				natTotalDC           int32 = 0
+				albNames             string
+				nlbNames             string
+				albRuleNames         string
+				nlbRuleNames         string
+				totalIPs             int32 = 0
+				totalAPICallFailures int32 = 0
 			)
 			servers, resp, err := apiClient.ServersApi.DatacentersServersGet(context.Background(), *datacenter.Id).Depth(depth).Execute()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error when calling `ServersApi.DatacentersServersGet``: %v\n", err)
 				fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", resp)
-				os.Exit(1)
+				totalAPICallFailures++
+				continue
 			}
 
 			albList, err := fetchApplicationLoadbalancers(apiClient, &datacenter)
@@ -119,20 +124,21 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 			}
 
 			newIonosDatacenters[*datacenter.Properties.Name] = IonosDCResources{
-				DCId:        *datacenter.Id,
-				Cores:       coresTotalDC,
-				Ram:         ramTotalDC,
-				Servers:     serverTotalDC,
-				NLBs:        nlbTotalDC,
-				ALBs:        albTotalDC,
-				NATs:        natTotalDC,
-				NLBRules:    nlbTotalRulesDC,
-				ALBRules:    albTotalRulesDC,
-				ALBName:     albNames,
-				NLBName:     nlbNames,
-				ALBRuleName: albRuleNames,
-				NLBRuleName: nlbRuleNames,
-				TotalIPs:    totalIPs,
+				DCId:                 *datacenter.Id,
+				Cores:                coresTotalDC,
+				Ram:                  ramTotalDC,
+				Servers:              serverTotalDC,
+				NLBs:                 nlbTotalDC,
+				ALBs:                 albTotalDC,
+				NATs:                 natTotalDC,
+				NLBRules:             nlbTotalRulesDC,
+				ALBRules:             albTotalRulesDC,
+				ALBName:              albNames,
+				NLBName:              nlbNames,
+				ALBRuleName:          albRuleNames,
+				NLBRuleName:          nlbRuleNames,
+				TotalIPs:             totalIPs,
+				TotalAPICallFailures: totalAPICallFailures,
 			}
 
 		}
@@ -140,7 +146,7 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 		m.Lock()
 		IonosDatacenters = newIonosDatacenters
 		m.Unlock()
-		// CalculateDCTotals(m)
+		CalculateDCTotals(m)
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
 }

@@ -2,13 +2,31 @@ package internal
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 
 	aws "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"gopkg.in/yaml.v2"
 )
+
+type Config struct {
+	Tenants   []TenantConfig   `yaml:"tenants"`
+	Metrics   []MetricConfig   `yaml:"metrics"`
+	Endpoints []EndpointConfig `yaml:"endpoints"`
+}
+
+type TenantConfig struct {
+	Name string `yaml:"name"`
+}
+
+type MetricConfig struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description"`
+	Type        string `yaml:"type"`
+}
 
 func GetEnv(key string, fallback string) string {
 	value, ok := os.LookupEnv(key)
@@ -55,4 +73,19 @@ func GetHeadBucket(client *s3.S3, bucketName string) error {
 	}
 	log.Printf("Bucket %s exists and is accessible\n", bucketName)
 	return nil
+}
+
+func LoadConfig(filename string) (*Config, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var config Config
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
 }

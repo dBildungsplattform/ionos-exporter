@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -13,13 +12,7 @@ import (
 
 	psql "github.com/ionos-cloud/sdk-go-dbaas-postgres"
 	"github.com/joho/godotenv"
-	"gopkg.in/yaml.v2"
 )
-
-type Tenant struct {
-	Name       string   `yaml:"name"`
-	Operations []string `yaml:"operations"`
-}
 
 type IonosPostgresResources struct {
 	ClusterName   string
@@ -37,9 +30,9 @@ type TelemetryMetric struct {
 }
 
 type TelemetryResponse struct {
-	Status string `json:status`
+	Status string `json:"status"`
 	Data   struct {
-		ResultType string            `json:"resultType`
+		ResultType string            `json:"resultType"`
 		Result     []TelemetryMetric `json:"result"`
 	} `json:"data"`
 }
@@ -51,32 +44,6 @@ var (
 	IonosPostgresClusters       = make(map[string]IonosPostgresResources)
 )
 
-type Config struct {
-	Tenants []Tenant `yaml:"tenants"`
-	Metrics []Metric `yaml:"metrics"`
-}
-
-type Metric struct {
-	Name        string `yaml:"name"`
-	Description string `yaml:"description"`
-	Type        string `yaml:"type"`
-}
-
-func loadConfig(filename string) (*Config, error) {
-	data, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	var config Config
-	err = yaml.Unmarshal(data, &config)
-	if err != nil {
-		return nil, err
-	}
-
-	return &config, nil
-}
-
 func PostgresCollectResources(m *sync.RWMutex, cycletime int32) {
 	err := godotenv.Load(".env")
 	if err != nil {
@@ -84,18 +51,19 @@ func PostgresCollectResources(m *sync.RWMutex, cycletime int32) {
 	}
 	cfgENV := psql.NewConfigurationFromEnv()
 	apiClient := psql.NewAPIClient(cfgENV)
-	config, err := loadConfig("/etc/ionos-exporter/config.yaml")
+	config, err := LoadConfig("/etc/ionos-exporter/config.yaml")
+	// config, err := LoadConfig("./charts/ionos-exporter/config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
-
+	//tired to speed up the processing, ionos restricted number of requests
 	for {
 		processCluster(apiClient, m, config.Metrics)
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
 }
 
-func processCluster(apiClient *psql.APIClient, m *sync.RWMutex, metrics []Metric) {
+func processCluster(apiClient *psql.APIClient, m *sync.RWMutex, metrics []MetricConfig) {
 	datacenters, err := fetchClusters(apiClient)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to fetch clusters: %v\n", err)
@@ -130,7 +98,7 @@ func processCluster(apiClient *psql.APIClient, m *sync.RWMutex, metrics []Metric
 		telemetryData := make([]TelemetryMetric, 0)
 
 		for _, metricConfig := range metrics {
-			telemetryResp, err := fetchTelemetryMetrics(os.Getenv("IONOS_TOKEN"), fmt.Sprintf("%s{postgres_cluster=\"%s\"}", metricConfig.Name, *clusters.Id), *clusters.Id)
+			telemetryResp, err := fetchTelemetryMetrics(os.Getenv("IONOS_TOKEN"), fmt.Sprintf("%s{postgres_cluster=\"%s\"}", metricConfig.Name, *clusters.Id))
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to fetch telemetry metrics for cluster %s: %v\n", *clusters.Id, err)
 				continue
@@ -224,7 +192,7 @@ func fetchOwner(apiClient *psql.APIClient, clusterID string) (string, error) {
 	return owner, nil
 }
 
-func fetchTelemetryMetrics(apiToken, query, clusterID string) (*TelemetryResponse, error) {
+func fetchTelemetryMetrics(apiToken, query string) (*TelemetryResponse, error) {
 	req, err := http.NewRequest("GET", "https://dcd.ionos.com/telemetry/api/v1/query_range", nil)
 	if err != nil {
 		return nil, err

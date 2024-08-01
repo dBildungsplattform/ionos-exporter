@@ -14,23 +14,24 @@ import (
 // Note you can also include fields of other types if they provide utility
 // but we just won't be exposing them as metrics.
 type ionosCollector struct {
-	mutex            *sync.RWMutex
-	coresMetric      *prometheus.GaugeVec
-	ramMetric        *prometheus.GaugeVec
-	serverMetric     *prometheus.GaugeVec
-	dcCoresMetric    *prometheus.GaugeVec
-	dcRamMetric      *prometheus.GaugeVec
-	dcServerMetric   *prometheus.GaugeVec
-	dcDCMetric       *prometheus.GaugeVec
-	nlbsMetric       *prometheus.GaugeVec
-	albsMetric       *prometheus.GaugeVec
-	natsMetric       *prometheus.GaugeVec
-	dcDCNLBMetric    *prometheus.GaugeVec
-	dcDCALBMetric    *prometheus.GaugeVec
-	dcDCNATMetric    *prometheus.GaugeVec
-	dcNLBRulesMetric *prometheus.GaugeVec
-	dcALBRulesMetric *prometheus.GaugeVec
-	dcTotalIpsMetric prometheus.Gauge
+	mutex             *sync.RWMutex
+	coresMetric       *prometheus.GaugeVec
+	ramMetric         *prometheus.GaugeVec
+	serverMetric      *prometheus.GaugeVec
+	dcCoresMetric     *prometheus.GaugeVec
+	dcRamMetric       *prometheus.GaugeVec
+	dcServerMetric    *prometheus.GaugeVec
+	dcDCMetric        *prometheus.GaugeVec
+	nlbsMetric        *prometheus.GaugeVec
+	albsMetric        *prometheus.GaugeVec
+	natsMetric        *prometheus.GaugeVec
+	dcDCNLBMetric     *prometheus.GaugeVec
+	dcDCALBMetric     *prometheus.GaugeVec
+	dcDCNATMetric     *prometheus.GaugeVec
+	dcNLBRulesMetric  *prometheus.GaugeVec
+	dcALBRulesMetric  *prometheus.GaugeVec
+	dcTotalIpsMetric  prometheus.Gauge
+	apiFailuresMetric prometheus.Counter
 }
 
 // You must create a constructor for you collector that
@@ -102,6 +103,10 @@ func NewIonosCollector(m *sync.RWMutex) *ionosCollector {
 			Name: "ionos_total_number_of_ips",
 			Help: "Shows the number of Ips in a IONOS",
 		}),
+		apiFailuresMetric: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "ionos_api_failures_total",
+			Help: "Total number of failed API calls",
+		}),
 	}
 }
 
@@ -127,6 +132,7 @@ func (collector *ionosCollector) Describe(ch chan<- *prometheus.Desc) {
 	collector.dcALBRulesMetric.Describe(ch)
 	collector.dcNLBRulesMetric.Describe(ch)
 	collector.dcTotalIpsMetric.Describe(ch)
+	collector.apiFailuresMetric.Describe(ch)
 }
 
 // Collect implements required collect function for all promehteus collectors
@@ -155,6 +161,7 @@ func (collector *ionosCollector) Collect(ch chan<- prometheus.Metric) {
 		collector.albsMetric.WithLabelValues(dcName, dcResources.ALBName, dcResources.ALBRuleName).Set(float64(dcResources.ALBs))
 		collector.natsMetric.WithLabelValues(dcName).Set(float64(dcResources.NATs))
 		collector.dcTotalIpsMetric.Set(float64(dcResources.TotalIPs))
+		collector.apiFailuresMetric.Add(float64(dcResources.TotalAPICallFailures))
 
 	}
 
@@ -179,4 +186,5 @@ func (collector *ionosCollector) Collect(ch chan<- prometheus.Metric) {
 	collector.dcNLBRulesMetric.Collect(ch)
 	collector.dcALBRulesMetric.Collect(ch)
 	collector.dcTotalIpsMetric.Collect(ch)
+	collector.apiFailuresMetric.Collect(ch)
 }

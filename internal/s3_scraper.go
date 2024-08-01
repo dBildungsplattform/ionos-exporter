@@ -18,10 +18,9 @@ import (
 )
 
 type EndpointConfig struct {
-	Region    string
-	AccessKey string
-	SecretKey string
-	Endpoint  string
+	Name     string `yaml:"name"`
+	Region   string `yaml:"region"`
+	Endpoint string `yaml:"endpoint"`
 }
 
 var (
@@ -29,6 +28,7 @@ var (
 	//map of maps for bucket tags stores tags for every bucket
 	//one bucket can have more tags.
 	TagsForPrometheus = make(map[string]map[string]string)
+	metricsMutex      sync.Mutex
 )
 
 // object for Metrics
@@ -41,19 +41,13 @@ type Metrics struct {
 }
 
 const (
-	MethodGET  = "GET"
-	MethodPUT  = "PUT"
-	MethodPOST = "POST"
-	MethodHEAD = "HEAD"
-)
-
-// how many objects to scan per page
-const (
+	MethodGET     = "GET"
+	MethodPUT     = "PUT"
+	MethodPOST    = "POST"
+	MethodHEAD    = "HEAD"
 	objectPerPage = 1000
 	maxConcurrent = 10
 )
-
-var metricsMutex sync.Mutex
 
 func createS3ServiceClient(region, accessKey, secretKey, endpoint string) (*s3.S3, error) {
 	sess, err := session.NewSession(&aws.Config{
@@ -69,42 +63,29 @@ func createS3ServiceClient(region, accessKey, secretKey, endpoint string) (*s3.S
 }
 
 func S3CollectResources(m *sync.RWMutex, cycletime int32) {
-	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	// config, err := LoadConfig("./charts/ionos-exporter/config.yaml")
+	config, err := LoadConfig("/etc/ionos-exporter/config.yaml")
+	if err != nil {
+		fmt.Println("Problem with loading the configuration yaml file", err)
+	}
+	// accessKey := config.Endpoints
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	// file, _ := os.Create("S3ioutput.txt")
-	// defer file.Close()
+	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 
-	// oldStdout := os.Stdout
-	// defer func() { os.Stdout = oldStdout }()
-	// os.Stdout = file
 	if accessKey == "" || secretKey == "" {
 		log.Println("AWS credentials are nto set in the enviroment variables.")
 		return
 	}
-	endpoints := map[string]EndpointConfig{
-		"eu-central-2": {
-			Region:    "eu-central-2",
-			AccessKey: accessKey,
-			SecretKey: secretKey,
-			Endpoint:  "https://s3-eu-central-2.ionoscloud.com",
-		},
-		"de": {
-			Region:    "de",
-			AccessKey: accessKey,
-			SecretKey: secretKey,
-			Endpoint:  "https://s3-eu-central-1.ionoscloud.com",
-		},
-	}
-	//buffered channel that is like a semaphore
+	//buffered channel that is a semaphore
 	semaphore := make(chan struct{}, maxConcurrent)
 	for {
 		var wg sync.WaitGroup
-		for endpoint, config := range endpoints {
+		for _, endpoint := range config.Endpoints {
 
-			if _, exists := IonosS3Buckets[endpoint]; exists {
+			if _, exists := IonosS3Buckets[endpoint.Endpoint]; exists {
 				continue
 			}
-			client, err := createS3ServiceClient(config.Region, config.AccessKey, config.SecretKey, config.Endpoint)
+			client, err := createS3ServiceClient(endpoint.Region, accessKey, secretKey, endpoint.Endpoint)
 
 			if err != nil {
 				fmt.Printf("Error creating service client for endpoint %s: %v\n", endpoint, err)
@@ -127,7 +108,7 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 						Methods:       make(map[string]int32),
 						RequestSizes:  make(map[string]int64),
 						ResponseSizes: make(map[string]int64),
-						Regions:       config.Region,
+						Regions:       "",
 					}
 					IonosS3Buckets[bucketName] = metrics
 				}

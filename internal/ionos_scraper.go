@@ -9,7 +9,6 @@ import (
 	"time"
 
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
-	"github.com/joho/godotenv"
 )
 
 var (
@@ -42,10 +41,10 @@ type IonosDCResources struct {
 
 func CollectResources(m *sync.RWMutex, cycletime int32) {
 
-	err := godotenv.Load(".env")
-	if err != nil {
-		fmt.Println("Error loading .env file")
-	}
+	// err := godotenv.Load(".env")
+	// if err != nil {
+	// 	fmt.Println("Error loading .env file")
+	// }
 	cfgENV := ionoscloud.NewConfigurationFromEnv()
 
 	// cfg.Debug = true

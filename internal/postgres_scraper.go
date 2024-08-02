@@ -11,7 +11,6 @@ import (
 	"time"
 
 	psql "github.com/ionos-cloud/sdk-go-dbaas-postgres"
-	"github.com/joho/godotenv"
 )
 
 type IonosPostgresResources struct {
@@ -45,10 +44,10 @@ var (
 )
 
 func PostgresCollectResources(m *sync.RWMutex, cycletime int32) {
-	err := godotenv.Load(".env")
-	if err != nil {
-		fmt.Println("Error loading .env file")
-	}
+	// err := godotenv.Load(".env")
+	// if err != nil {
+	// 	fmt.Println("Error loading .env file")
+	// }
 	cfgENV := psql.NewConfigurationFromEnv()
 	apiClient := psql.NewAPIClient(cfgENV)
 	config, err := LoadConfig("/etc/ionos-exporter/config.yaml")

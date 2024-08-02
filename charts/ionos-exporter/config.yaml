@@ -36,6 +36,7 @@ metrics:
   description: Number of index scans per table/schema.
   type: gauge
 
+
 endpoints:
   - name: eu-central-2
     region: eu-central-2

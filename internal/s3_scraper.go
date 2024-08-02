@@ -63,6 +63,7 @@ func createS3ServiceClient(region, accessKey, secretKey, endpoint string) (*s3.S
 }
 
 func S3CollectResources(m *sync.RWMutex, cycletime int32) {
+	fmt.Println("in S3CollectResources")
 	// config, err := LoadConfig("./charts/ionos-exporter/config.yaml")
 	config, err := LoadConfig("/etc/ionos-exporter/config.yaml")
 	if err != nil {

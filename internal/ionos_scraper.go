@@ -41,6 +41,7 @@ type IonosDCResources struct {
 
 func CollectResources(m *sync.RWMutex, cycletime int32) {
 
+	//for local testing
 	// err := godotenv.Load(".env")
 	// if err != nil {
 	// 	fmt.Println("Error loading .env file")
@@ -60,7 +61,6 @@ func CollectResources(m *sync.RWMutex, cycletime int32) {
 			totalAPICallFailures++
 			continue
 		}
-		// fmt.Println("DATACENTER", datacenters)
 		newIonosDatacenters := make(map[string]IonosDCResources)
 		for _, datacenter := range *datacenters.Items {
 			var (

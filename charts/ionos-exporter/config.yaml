@@ -35,12 +35,3 @@ metrics:
 - name: ionos_dbaas_postgres_user_tables_idx_scan
   description: Number of index scans per table/schema.
   type: gauge
-
-
-endpoints:
-  - name: eu-central-2
-    region: eu-central-2
-    endpoint: https://s3-eu-central-2.ionoscloud.com
-  - name: de
-    region: de
-    endpoint: https://s3-eu-central-1.ionoscloud.com

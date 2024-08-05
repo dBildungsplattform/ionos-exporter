@@ -27,8 +27,7 @@ func main() {
 	go internal.S3CollectResources(m, ionos_api_cycle)
 	go internal.PostgresCollectResources(m, ionos_api_cycle)
 
-	// startPrometheus()
-	//internal.PrintDCResources(mutex)
+	internal.PrintDCResources(m)
 	internal.StartPrometheus(m)
 	http.Handle("/metrics", promhttp.Handler())
 	http.Handle("/healthcheck", http.HandlerFunc(internal.HealthCheck))

@@ -44,18 +44,24 @@ var (
 )
 
 func PostgresCollectResources(m *sync.RWMutex, cycletime int32) {
+	//for local testing
 	// err := godotenv.Load(".env")
 	// if err != nil {
 	// 	fmt.Println("Error loading .env file")
 	// }
 	cfgENV := psql.NewConfigurationFromEnv()
 	apiClient := psql.NewAPIClient(cfgENV)
+
+	//config has all metrics for postgres
 	config, err := LoadConfig("/etc/ionos-exporter/config.yaml")
+
+	//for local testing
 	// config, err := LoadConfig("./charts/ionos-exporter/config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
-	//tired to speed up the processing, ionos restricted number of requests
+	//tried to speed up the processing with concurrency, ionos restricted number of requests
+	//so many of them would not go through
 	for {
 		processCluster(apiClient, m, config.Metrics)
 		time.Sleep(time.Duration(cycletime) * time.Second)

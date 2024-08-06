@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -25,14 +26,11 @@ type EndpointConfig struct {
 }
 
 var (
-	IonosS3Buckets = make(map[string]Metrics)
-	//map of maps for bucket tags stores tags for every bucket
-	//one bucket can have more tags.
+	IonosS3Buckets    = make(map[string]Metrics)
 	TagsForPrometheus = make(map[string]map[string]string)
 	metricsMutex      sync.Mutex
 )
 
-// object for Metrics
 type Metrics struct {
 	Methods       map[string]int32
 	RequestSizes  map[string]int64
@@ -68,7 +66,7 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 
 	if accessKey == "" || secretKey == "" {
-		log.Println("AWS credentials are nto set in the enviroment variables.")
+		log.Println("AWS credentials are not set in the environment variables.")
 		return
 	}
 	endpoints := map[string]EndpointConfig{
@@ -85,7 +83,6 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 			Endpoint:  "https://s3-eu-central-1.ionoscloud.com",
 		},
 	}
-	//buffered channel that is a semaphore
 	semaphore := make(chan struct{}, maxConcurrent)
 	for {
 		var wg sync.WaitGroup
@@ -112,7 +109,6 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 			for _, bucket := range result.Buckets {
 				bucketName := *bucket.Name
 				if _, exists := IonosS3Buckets[bucketName]; !exists {
-					//check if exists if not initialise
 					metrics := Metrics{
 						Methods:       make(map[string]int32),
 						RequestSizes:  make(map[string]int64),
@@ -137,9 +133,7 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 						log.Println("Error checking the bucket head:", err)
 						return
 					}
-					//acquiring slot in semaphore blocking if the buffer is full
 					semaphore <- struct{}{}
-					//release the semaphore when the goroutine completes
 					defer func() {
 						<-semaphore
 					}()
@@ -154,14 +148,10 @@ func S3CollectResources(m *sync.RWMutex, cycletime int32) {
 
 }
 
-/*
-function for processing buckets getting the Traffic of all the operations
-and their sizes.
-*/
 func processBucket(client *s3.S3, bucketName string) {
 
 	var wg sync.WaitGroup
-	var logEntryRegex = regexp.MustCompile(`(GET|PUT|HEAD|POST) \/[^"]*" \d+ \S+ (\d+|-) (\d+|-) \d+ (\d+|-)`)
+	logEntryRegex := regexp.MustCompile(`(GET|PUT|HEAD|POST) \/[^"]*" \d+ \S+ (\d+|-) (\d+|-) \d+ (\d+|-)`)
 	semaphore := make(chan struct{}, maxConcurrent)
 
 	getBucketTags(client, bucketName)
@@ -176,7 +166,6 @@ func processBucket(client *s3.S3, bucketName string) {
 
 	continuationToken := ""
 
-	//getting owner
 	getAclInput := &s3.GetBucketAclInput{
 		Bucket: aws.String(bucketName),
 	}
@@ -191,7 +180,6 @@ func processBucket(client *s3.S3, bucketName string) {
 		metrics.Owner = "Unknown"
 	}
 
-	//main loop
 	for {
 
 		objectList, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
@@ -200,7 +188,6 @@ func processBucket(client *s3.S3, bucketName string) {
 			ContinuationToken: aws.String(continuationToken),
 			MaxKeys:           aws.Int64(objectPerPage),
 		})
-		//error handling
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
 				switch aerr.Code() {
@@ -221,8 +208,6 @@ func processBucket(client *s3.S3, bucketName string) {
 			log.Printf("bucket %s does not contain any objects with the 'logs/' prefix\n", bucketName)
 			return
 		}
-		//iterate through those objects and check the input of logs
-		//here we are using concurrency
 		for _, object := range objectList.Contents {
 			wg.Add(1)
 			semaphore <- struct{}{}
@@ -232,26 +217,17 @@ func processBucket(client *s3.S3, bucketName string) {
 				processObject(client, bucketName, object, logEntryRegex, &metrics)
 			}(object)
 		}
-		//if there is no more pages break the loop
 		if !aws.BoolValue(objectList.IsTruncated) {
 			break
 		}
-		//go to next page
 		continuationToken = *objectList.NextContinuationToken
 	}
 	wg.Wait()
-	//make it thread safe with a mutex
 	metricsMutex.Lock()
 	IonosS3Buckets[bucketName] = metrics
 	metricsMutex.Unlock()
 }
 
-/*
-function for getting bucket Tags, takes two parameters, the service client
-and the bucket name, then it checks for tags using the aws sdk GetBucketTagging
-no return value it saves everything to map of maps for Tags which is sent
-to prometheus
-*/
 func getBucketTags(client *s3.S3, bucketName string) {
 	tagsOutput, err := client.GetBucketTagging(&s3.GetBucketTaggingInput{
 		Bucket: aws.String(bucketName),
@@ -283,7 +259,6 @@ func getBucketTags(client *s3.S3, bucketName string) {
 	metricsMutex.Lock()
 	TagsForPrometheus[bucketName] = tags
 	metricsMutex.Unlock()
-
 }
 
 func processObject(client *s3.S3, bucketName string, object *s3.Object, logEntryRegex *regexp.Regexp, metrics *Metrics) {
@@ -302,13 +277,21 @@ func processObject(client *s3.S3, bucketName string, object *s3.Object, logEntry
 	}
 	defer result.Body.Close()
 
-	logContent, err := io.ReadAll(result.Body)
-	if err != nil {
-		log.Println("Problem reading the body", err)
-		return
+	reader := bufio.NewReader(result.Body)
+	for {
+		line, err := reader.ReadBytes('\n')
+		if err != nil {
+			if err != io.EOF {
+				log.Println("Problem reading the body", err)
+			}
+			break
+		}
+		processLine(line, logEntryRegex, metrics)
 	}
-	matches := logEntryRegex.FindAllStringSubmatch(string(logContent), -1)
+}
 
+func processLine(line []byte, logEntryRegex *regexp.Regexp, metrics *Metrics) {
+	matches := logEntryRegex.FindAllStringSubmatch(string(line), -1)
 	for _, match := range matches {
 		metricsMutex.Lock()
 		method := match[1]

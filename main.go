@@ -5,6 +5,7 @@ import (
 	"ionos-exporter/internal"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 
@@ -21,8 +22,10 @@ func main() {
 	configPath := flag.String("config", "", "Path to configuration file")
 	envFile := flag.String("env", "", "Path to env file (optional)")
 	flag.Parse()
-	if *configPath == "" {
-		flag.Usage()
+	if *envFile != "" {
+		if _, err := os.Stat(*configPath); os.IsNotExist(err) {
+			log.Printf("Warning: config file not found at %s, continuing without it", *configPath)
+		}
 	}
 
 	exporterPort = internal.GetEnv("IONOS_EXPORTER_APPLICATION_CONTAINER_PORT", "9100")

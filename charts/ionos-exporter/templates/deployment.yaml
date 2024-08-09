@@ -35,6 +35,8 @@ spec:
             - name: metrics
               containerPort: {{ .Values.containerPort }}
               protocol: TCP
+          args:
+            - "-config=/etc/ionos-exporter/config.yaml"
           livenessProbe:
             httpGet:
               path: /metrics

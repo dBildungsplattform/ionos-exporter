@@ -11,6 +11,7 @@ import (
 	"time"
 
 	psql "github.com/ionos-cloud/sdk-go-dbaas-postgres"
+	"github.com/joho/godotenv"
 )
 
 type IonosPostgresResources struct {
@@ -43,25 +44,19 @@ var (
 	IonosPostgresClusters       = make(map[string]IonosPostgresResources)
 )
 
-func PostgresCollectResources(m *sync.RWMutex, cycletime int32) {
-	//for local testing
-	// err := godotenv.Load(".env")
-	// if err != nil {
-	// 	fmt.Println("Error loading .env file")
-	// }
+func PostgresCollectResources(m *sync.RWMutex, configPath, envFile string, cycletime int32) {
+	err := godotenv.Load(envFile)
+	if err != nil {
+		fmt.Println("Error loading .env file (optional)")
+	}
+
 	cfgENV := psql.NewConfigurationFromEnv()
 	apiClient := psql.NewAPIClient(cfgENV)
 
-	//config has all metrics for postgres
-	config, err := LoadConfig("/etc/ionos-exporter/config.yaml")
-
-	//for local testing
-	// config, err := LoadConfig("./charts/ionos-exporter/config.yaml")
+	config, err := LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
-	//tried to speed up the processing with concurrency, ionos restricted number of requests
-	//so many of them would not go through
 	for {
 		processCluster(apiClient, m, config.Metrics)
 		time.Sleep(time.Duration(cycletime) * time.Second)
@@ -111,7 +106,6 @@ func processCluster(apiClient *psql.APIClient, m *sync.RWMutex, metrics []Metric
 			telemetryData = append(telemetryData, telemetryResp.Data.Result...)
 		}
 
-		// fmt.Printf("Here are the database names %v", databaseNames)
 		newIonosPostgresResources[*clusters.Properties.DisplayName] = IonosPostgresResources{
 			ClusterName:   *clusters.Properties.DisplayName,
 			CPU:           *clusters.Properties.Cores,

@@ -13,13 +13,7 @@ import (
 )
 
 type Config struct {
-	Tenants   []TenantConfig   `yaml:"tenants"`
-	Metrics   []MetricConfig   `yaml:"metrics"`
-	Endpoints []EndpointConfig `yaml:"endpoints"`
-}
-
-type TenantConfig struct {
-	Name string `yaml:"name"`
+	Metrics []MetricConfig `yaml:"metrics"`
 }
 
 type MetricConfig struct {
@@ -42,20 +36,6 @@ func GetEnv(key string, fallback string) string {
 			return value
 		}
 	}
-}
-
-func HasLogsFolder(client *s3.S3, bucketName string) bool {
-	result, err := client.ListObjectsV2(&s3.ListObjectsV2Input{
-		Bucket: aws.String(bucketName),
-		Prefix: aws.String("logs/"),
-	})
-
-	if err != nil {
-		fmt.Println("Error listing objects in bucket: ", err)
-		return false
-	}
-
-	return len(result.Contents) > 0
 }
 
 func GetHeadBucket(client *s3.S3, bucketName string) error {

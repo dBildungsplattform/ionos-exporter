@@ -19,7 +19,7 @@ var (
 )
 
 func main() {
-	configPath := flag.String("config", "", "Path to configuration file")
+	configPath := flag.String("config", "/etc/ionos-exporter/config.yaml", "Path to configuration file")
 	envFile := flag.String("env", "", "Path to env file (optional)")
 	flag.Parse()
 	if *envFile != "" {

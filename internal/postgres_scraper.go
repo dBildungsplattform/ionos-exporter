@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"sync"
@@ -55,7 +54,7 @@ func PostgresCollectResources(m *sync.RWMutex, configPath, envFile string, cycle
 
 	config, err := LoadConfig(configPath)
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		fmt.Println("Failed to load config: %v", err)
 	}
 	for {
 		processCluster(apiClient, m, config.Metrics)

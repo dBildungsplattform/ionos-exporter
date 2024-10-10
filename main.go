@@ -35,7 +35,12 @@ func main() {
 		ionos_api_cycle = int32(cycletime)
 	}
 	go internal.CollectResources(m, *envFile, ionos_api_cycle)
-	go internal.S3CollectResources(m, ionos_api_cycle)
+	if s3_enabled, err := strconv.ParseBool(internal.GetEnv("IONOS_EXPORTER_S3_ENABLED", "false")); s3_enabled == true {
+		if err != nil {
+			log.Fatal("Cannot convert IONOS_EXPORTER_S3_ENABLED value to bool")
+		}
+		go internal.S3CollectResources(m, ionos_api_cycle)
+	}
 	go internal.PostgresCollectResources(m, *configPath, *envFile, ionos_api_cycle)
 
 	internal.PrintDCResources(m)

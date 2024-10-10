@@ -183,7 +183,7 @@ func fetchOwner(apiClient *psql.APIClient, clusterID string) (string, error) {
 	}
 	var owner = ""
 	for _, db := range *databases.Items {
-		if db.Properties != nil && db.Properties.Name != nil {
+		if db.Properties != nil && db.Properties.Owner != nil {
 			owner = *db.Properties.Owner
 		}
 	}

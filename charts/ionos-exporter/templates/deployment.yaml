@@ -48,7 +48,7 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
-          {{ if .Values.ionos.s3.enabled -}}
+          {{- if .Values.ionos.s3.enabled }}
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -59,7 +59,7 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.ionos.credentials.secret_name }}
                   key: {{ .Values.ionos.s3.credentials.secret_key }}
-          {{ end -}}
+          {{- end }}
             - name: IONOS_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -71,7 +71,7 @@ spec:
                   name: {{ .Values.ionos.credentials.secret_name  }}
                   key: {{ .Values.ionos.credentials.password_key  }}
             - name: IONOS_EXPORTER_S3_ENABLED
-              value: {{ .Values.ionos.s3.enabled }}
+              value: {{ .Values.ionos.s3.enabled | quote }}
             - name: IONOS_EXPORTER_APPLICATION_CONTAINER_PORT
               value: {{ .Values.containerPort | quote }}
             - name: IONOS_EXPORTER_API_CYCLE

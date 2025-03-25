@@ -10,9 +10,18 @@ image:
 imagePullSecrets: []
 
 # credentials
-ionos_credentials_secret_name: "ionos-exporter-credentials"
-ionos_credentials_username_key: "username"
-ionos_credentials_password_key: "password"
+# ionos_credentials_secret_token: "ionos-exporter-token"
+# ionos_credentials_token_key: "token"
+ionos:
+  credentials:
+    secret_name: "ionos-exporter-credentials"
+    username_key: "username"
+    password_key: "password"
+  s3:
+    enabled: false
+    credentials:
+      secret_key: "secretKey"
+      access_key: "accessKey"
 
 service:
   type: ClusterIP

@@ -1,0 +1,37 @@
+metrics:
+- name: ionos_dbaas_postgres_transactions:rate2m
+  description: Per-second average rate of SQL transactions (that have been committed), calculated over the last 2 minutes.
+  type: gauge
+- name: ionos_dbaas_postgres_connections_count
+  description: Number of connections per instance and state. active, disabled, fastpath function call, idle, idle in transaction, idle in transaction (aborted).
+  type: gauge
+- name: ionos_dbaas_postgres_cpu_rate5m
+  description: The average CPU utilization over the past 5 minutes.
+  type: gauge
+- name: ionos_dbaas_postgres_disk_io_time_weighted_seconds_rate5m
+  description: The rate of disk I/O time, in seconds, over a five-minute period. Provides insight into performance of a disk, as high values may indicate that the disk is being overused or is experiencing performance issues.
+  type: gauge
+- name: ionos_dbaas_postgres_instance_count
+  description: Desired number of instances. The number of currently ready and running instances may be different. ionos_dbaas_postgres_role provides information about running instances split by role.
+  type: gauge
+- name: ionos_dbaas_postgres_load5
+  description: Linux load average for the last 5 minutes. This metric is represented as a number between 0 and 1 (can be greater than 1 on multicore machines), where 0 indicates that the CPU core is idle and 1 indicates that the CPU core is fully utilized. Higher values may indicate that the system is experiencing performance issues or is approaching capacity.
+  type: gauge
+- name: ionos_dbaas_postgres_memory_available_bytes
+  description: Available memory in bytes.
+  type: gauge
+- name: ionos_dbaas_postgres_memory_total_bytes
+  description: Total memory of the underlying machine in bytes. Some of it is used for our management and monitoring tools and not available to PostgreSQL. During horizontal scaling you might see different values for each instance.
+  type: gauge
+- name: ionos_dbaas_postgres_role
+  description: Current role of the instance. Provides whether an instance is currently "master" or "replica".
+  type: gauge
+- name: ionos_dbaas_postgres_storage_available_bytes
+  description: Free available disk space per instance in bytes.
+  type: gauge
+- name: ionos_dbaas_postgres_storage_total_bytes
+  description: Total disk space per instance in bytes. During horizontal scaling you might see different values for each instance.
+  type: gauge
+- name: ionos_dbaas_postgres_user_tables_idx_scan
+  description: Number of index scans per table/schema.
+  type: gauge

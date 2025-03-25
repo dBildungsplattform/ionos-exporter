@@ -35,6 +35,8 @@ spec:
             - name: metrics
               containerPort: {{ .Values.containerPort }}
               protocol: TCP
+          args:
+            - "-config=/etc/ionos-exporter/config.yaml"
           livenessProbe:
             httpGet:
               path: /metrics
@@ -46,20 +48,43 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           env:
+          {{- if .Values.ionos.s3.enabled }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ionos.credentials.secret_name }}
+                  key: {{ .Values.ionos.s3.credentials.access_key }}
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ionos.credentials.secret_name }}
+                  key: {{ .Values.ionos.s3.credentials.secret_key }}
+          {{- end }}
             - name: IONOS_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.ionos_credentials_secret_name }}
-                  key: {{ .Values.ionos_credentials_username_key }}
+                  name: {{ .Values.ionos.credentials.secret_name }}
+                  key: {{ .Values.ionos.credentials.username_key }}
             - name: IONOS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.ionos_credentials_secret_name  }}
-                  key: {{ .Values.ionos_credentials_password_key  }}
+                  name: {{ .Values.ionos.credentials.secret_name  }}
+                  key: {{ .Values.ionos.credentials.password_key  }}
+            - name: IONOS_EXPORTER_S3_ENABLED
+              value: {{ .Values.ionos.s3.enabled | quote }}
             - name: IONOS_EXPORTER_APPLICATION_CONTAINER_PORT
               value: {{ .Values.containerPort | quote }}
             - name: IONOS_EXPORTER_API_CYCLE
               value: {{ .Values.ionosApiCycle | quote }}
+          volumeMounts:
+            - name: config-volume
+              readOnly: true
+              mountPath: /etc/ionos-exporter/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: config-volume
+          configMap: 
+            name: ionos-exporter-config
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -79,6 +79,8 @@ spec:
                   name: {{ .Values.ionos.secret_name }}
                   key: {{ .Values.ionos.token.credentials.token_key }}
           {{- end }}
+            - name: IONOS_EXPORTER_POSTGRES_ENABLED
+              value: {{ .Values.ionos.postgres.enabled | quote }}
             - name: IONOS_EXPORTER_S3_ENABLED
               value: {{ .Values.ionos.s3.enabled | quote }}
             - name: IONOS_EXPORTER_APPLICATION_CONTAINER_PORT

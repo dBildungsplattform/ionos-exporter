@@ -25,6 +25,8 @@ ionos:
     enabled: false
     credentials:
       token_key: "tokenKey"
+  postgres:
+    enabled: false
 
 service:
   type: ClusterIP

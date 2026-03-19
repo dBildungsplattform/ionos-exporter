@@ -35,13 +35,26 @@ func main() {
 		ionos_api_cycle = int32(cycletime)
 	}
 	go internal.CollectResources(m, *envFile, ionos_api_cycle)
-	if s3_enabled, err := strconv.ParseBool(internal.GetEnv("IONOS_EXPORTER_S3_ENABLED", "false")); s3_enabled == true {
-		if err != nil {
-			log.Fatal("Cannot convert IONOS_EXPORTER_S3_ENABLED value to bool")
-		}
+
+	// Enable / Disable S3 Exporter
+	s3EnabledStr := internal.GetEnv("IONOS_EXPORTER_S3_ENABLED", "false")
+	s3Enabled, err := strconv.ParseBool(s3EnabledStr)
+	if err != nil {
+		log.Fatalf("Invalid value for IONOS_EXPORTER_S3_ENABLED=%q (expected true/false): %v", s3EnabledStr, err)
+	}
+	if s3Enabled {
 		go internal.S3CollectResources(m, ionos_api_cycle)
 	}
-	go internal.PostgresCollectResources(m, *configPath, *envFile, ionos_api_cycle)
+
+	// Enable / Disable Postgres Exporter
+	postgresEnabledStr := internal.GetEnv("IONOS_EXPORTER_POSTGRES_ENABLED", "false")
+	postgresEnabled, err := strconv.ParseBool(postgresEnabledStr)
+	if err != nil {
+		log.Fatalf("Invalid value for IONOS_EXPORTER_POSTGRES_ENABLED=%q (expected true/false): %v", postgresEnabledStr, err)
+	}
+	if postgresEnabled {
+		go internal.PostgresCollectResources(m, *configPath, *envFile, ionos_api_cycle)
+	}
 
 	internal.PrintDCResources(m)
 	internal.StartPrometheus(m)

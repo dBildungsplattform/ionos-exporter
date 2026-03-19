@@ -53,12 +53,6 @@ func main() {
 		log.Fatalf("Invalid value for IONOS_EXPORTER_POSTGRES_ENABLED=%q (expected true/false): %v", postgresEnabledStr, err)
 	}
 	if postgresEnabled {
-		if _, err := os.Stat(*configPath); err != nil {
-			log.Fatalf("Postgres exporter enabled but config file %s is not accessible: %v", *configPath, err)
-		}
-		if _, err := internal.LoadConfig(*configPath); err != nil {
-			log.Fatalf("Postgres exporter enabled but config file %s is invalid: %v", *configPath, err)
-		}
 		go internal.PostgresCollectResources(m, *configPath, *envFile, ionos_api_cycle)
 	}
 

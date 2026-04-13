@@ -1,0 +1,79 @@
+package internal
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"reflect"
+	"sync"
+	"time"
+
+	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+type ContractLimitsCollector struct {
+	mutex        sync.RWMutex
+	contractData *ionoscloud.Contracts
+}
+
+func (c *ContractLimitsCollector) Describe(ch chan<- *prometheus.Desc) {}
+
+func (c *ContractLimitsCollector) StartScrape(cycletime int32) {
+	cfgENV := ionoscloud.NewConfigurationFromEnv()
+	apiClient := ionoscloud.NewAPIClient(cfgENV)
+
+	for {
+		contracts, resp, err := apiClient.ContractResourcesApi.ContractsGet(context.Background()).Execute()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error when calling `ContractResourcesApi.ContractsGet``: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Full HTTP response: %+v\n", resp)
+			c.contractData = nil
+		} else {
+			c.mutex.Lock()
+			c.contractData = &contracts
+			c.mutex.Unlock()
+		}
+		time.Sleep(time.Duration(cycletime) * time.Second)
+	}
+}
+
+func (c *ContractLimitsCollector) Collect(ch chan<- prometheus.Metric) {
+	fetchErrorMetric := 1.0
+	c.mutex.RLock()
+	//Ensure clean finish in case of errors
+	defer func() {
+		c.mutex.RUnlock()
+		if err := recover(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error while converting IONOS response to promtethus metrics`: %v\n", err)
+		}
+		ch <- prometheus.MustNewConstMetric(prometheus.NewDesc(
+			"ionos_contract_fetch_error",
+			"Error during fetch/generation of metrics",
+			nil,
+			nil,
+		), prometheus.GaugeValue, fetchErrorMetric)
+	}()
+	if c.contractData != nil {
+		for _, contract := range *c.contractData.Items {
+			contractId := fmt.Sprintf("%d", *contract.Properties.ContractNumber)
+			values := reflect.ValueOf(*contract.Properties.ResourceLimits)
+			names := values.Type()
+			for i := 0; i < values.NumField(); i++ {
+				name := names.Field(i).Name
+				value := float64(values.Field(i).Elem().Int())
+				ch <- prometheus.MustNewConstMetric(buildDesc(name), prometheus.GaugeValue, value, contractId)
+			}
+		}
+		fetchErrorMetric = 0
+	}
+}
+
+func buildDesc(name string) *prometheus.Desc {
+	return prometheus.NewDesc(
+		"ionos_contract_"+ToSnake(name),
+		"Contract resource limits metrics via IONOS API. More details: https://api.ionos.com/docs/cloud/v6/#tag/Contract-resources/operation/contractsGet",
+		[]string{"contract"},
+		nil,
+	)
+}

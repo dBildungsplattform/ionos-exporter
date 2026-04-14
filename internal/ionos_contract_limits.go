@@ -45,7 +45,7 @@ func (c *ContractLimitsCollector) Collect(ch chan<- prometheus.Metric) {
 	defer func() {
 		c.mutex.RUnlock()
 		if err := recover(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error while converting IONOS response to promtethus metrics`: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error while converting IONOS response to prometheus metrics: %v\n", err)
 		}
 		ch <- prometheus.MustNewConstMetric(prometheus.NewDesc(
 			"ionos_contract_fetch_error",

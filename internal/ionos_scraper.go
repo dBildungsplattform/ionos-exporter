@@ -39,7 +39,7 @@ type IonosDCResources struct {
 	TotalAPICallFailures int32
 }
 
-func CollectResources(m *sync.RWMutex, envFile string, cycletime int32) {
+func CollectResources(m *sync.RWMutex, cycletime int32) {
 
 	cfgENV := ionoscloud.NewConfigurationFromEnv()
 

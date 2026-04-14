@@ -25,15 +25,15 @@ func (c *ContractLimitsCollector) StartScrape(cycletime int32) {
 
 	for {
 		contracts, resp, err := apiClient.ContractResourcesApi.ContractsGet(context.Background()).Execute()
+		c.mutex.Lock()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error when calling `ContractResourcesApi.ContractsGet``: %v\n", err)
 			fmt.Fprintf(os.Stderr, "Full HTTP response: %+v\n", resp)
 			c.contractData = nil
 		} else {
-			c.mutex.Lock()
 			c.contractData = &contracts
-			c.mutex.Unlock()
 		}
+		c.mutex.Unlock()
 		time.Sleep(time.Duration(cycletime) * time.Second)
 	}
 }

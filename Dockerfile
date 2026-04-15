@@ -1,4 +1,4 @@
-FROM golang:1.20-alpine3.18 AS build_deps
+FROM golang:1.26.2-alpine3.23@sha256:c216c4343b489259302908b67a3c8fa55b283bdc30be729baa38b9953ca28857 AS build_deps
 
 RUN apk add --no-cache git
 
@@ -17,7 +17,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 go build -o ionos-exporter -ldflags '-w -extldflags "-static"' .
 
-FROM alpine:3.18
+FROM alpine:3.23@sha256:59855d3dceb3ae53991193bd03301e082b2a7faa56a514b03527ae0ec2ce3a95
 
 RUN apk add --no-cache ca-certificates
 

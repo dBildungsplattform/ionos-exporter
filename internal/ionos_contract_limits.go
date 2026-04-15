@@ -15,8 +15,16 @@ import (
 type ContractLimitsCollector struct {
 	mutex        sync.RWMutex
 	contractData *ionoscloud.Contracts
+	promDescs    map[string]*prometheus.Desc
 }
 
+func NewContractLimitsCollector() *ContractLimitsCollector {
+	return &ContractLimitsCollector{
+		promDescs: make(map[string]*prometheus.Desc),
+	}
+}
+
+// Uncheked Collector: Descriptions will be generated dynamically
 func (c *ContractLimitsCollector) Describe(ch chan<- *prometheus.Desc) {}
 
 func (c *ContractLimitsCollector) StartScrape(cycletime int32) {
@@ -49,7 +57,7 @@ func (c *ContractLimitsCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		ch <- prometheus.MustNewConstMetric(prometheus.NewDesc(
 			"ionos_contract_fetch_error",
-			"Error during fetch/generation of metrics",
+			"Error during fetch/generation of contract resource limits metrics",
 			nil,
 			nil,
 		), prometheus.GaugeValue, fetchErrorMetric)
@@ -62,18 +70,24 @@ func (c *ContractLimitsCollector) Collect(ch chan<- prometheus.Metric) {
 			for i := 0; i < values.NumField(); i++ {
 				name := names.Field(i).Name
 				value := float64(values.Field(i).Elem().Int())
-				ch <- prometheus.MustNewConstMetric(buildDesc(name), prometheus.GaugeValue, value, contractId)
+				ch <- prometheus.MustNewConstMetric(c.getDesc(name), prometheus.GaugeValue, value, contractId)
 			}
 		}
 		fetchErrorMetric = 0
 	}
 }
 
-func buildDesc(name string) *prometheus.Desc {
-	return prometheus.NewDesc(
-		"ionos_contract_"+ToSnake(name),
-		"Contract resource limits metrics via IONOS API. More details: https://api.ionos.com/docs/cloud/v6/#tag/Contract-resources/operation/contractsGet",
-		[]string{"contract"},
-		nil,
-	)
+func (c *ContractLimitsCollector) getDesc(name string) *prometheus.Desc {
+	if desc, ok := c.promDescs[name]; ok {
+		return desc
+	} else {
+		desc := prometheus.NewDesc(
+			"ionos_contract_"+ToSnake(name),
+			"Contract resource limits metrics via IONOS API. More details: https://api.ionos.com/docs/cloud/v6/#tag/Contract-resources/operation/contractsGet",
+			[]string{"contract"},
+			nil,
+		)
+		c.promDescs[name] = desc
+		return desc
+	}
 }

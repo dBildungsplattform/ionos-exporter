@@ -36,11 +36,11 @@ func main() {
 	} else {
 		ionos_api_cycle = int32(cycletime)
 	}
-	go internal.CollectResources(m, *envFile, ionos_api_cycle)
+	go internal.CollectResources(m, ionos_api_cycle)
 
 	// Contract Limits Exporter
 	if internal.Must(internal.GetBoolEnv("IONOS_EXPORTER_CONTRACT_LIMITS_ENABLED", true)) {
-		contractLimitsCollector := &internal.ContractLimitsCollector{}
+		contractLimitsCollector := internal.NewContractLimitsCollector()
 		go contractLimitsCollector.StartScrape(ionos_api_cycle)
 		prometheus.MustRegister(contractLimitsCollector)
 	}
@@ -50,7 +50,7 @@ func main() {
 	}
 
 	if internal.Must(internal.GetBoolEnv("IONOS_EXPORTER_POSTGRES_ENABLED", false)) {
-		go internal.PostgresCollectResources(m, *configPath, *envFile, ionos_api_cycle)
+		go internal.PostgresCollectResources(m, *configPath, ionos_api_cycle)
 	}
 
 	internal.PrintDCResources(m)

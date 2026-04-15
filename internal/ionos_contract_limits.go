@@ -62,15 +62,24 @@ func (c *ContractLimitsCollector) Collect(ch chan<- prometheus.Metric) {
 			nil,
 		), prometheus.GaugeValue, fetchErrorMetric)
 	}()
-	if c.contractData != nil {
+
+	if c.contractData != nil && c.contractData.Items != nil {
 		for _, contract := range *c.contractData.Items {
+			if contract.Properties == nil || contract.Properties.ResourceLimits == nil || contract.Properties.ContractNumber == nil {
+				fmt.Fprintf(os.Stderr, "Contract is missing neccessary field, skip: %+v\n", contract)
+				continue
+			}
 			contractId := fmt.Sprintf("%d", *contract.Properties.ContractNumber)
 			values := reflect.ValueOf(*contract.Properties.ResourceLimits)
 			names := values.Type()
 			for i := 0; i < values.NumField(); i++ {
 				name := names.Field(i).Name
-				value := float64(values.Field(i).Elem().Int())
-				ch <- prometheus.MustNewConstMetric(c.getDesc(name), prometheus.GaugeValue, value, contractId)
+				value := values.Field(i).Elem()
+				if !value.CanInt(){
+					fmt.Fprintf(os.Stderr, "Expected int for metrics, but %q is %v, skip.\n", name, value.Kind())
+					continue
+				}
+				ch <- prometheus.MustNewConstMetric(c.getDesc(name), prometheus.GaugeValue, float64(value.Int()), contractId)
 			}
 		}
 		fetchErrorMetric = 0

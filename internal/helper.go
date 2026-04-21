@@ -5,6 +5,9 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"regexp"
+	"strconv"
+	"strings"
 
 	aws "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -34,6 +37,25 @@ func GetEnv(key string, fallback string) string {
 		} else {
 			fmt.Printf("%s set, returning %s\n", key, value)
 			return value
+		}
+	}
+}
+
+func GetBoolEnv(key string, fallback bool) (bool, error) {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		fmt.Printf("%s not set, returning %t\n", key, fallback)
+		return fallback, nil
+	} else {
+		if value == "" {
+			fmt.Printf("%s set but empty, returning %t\n", key, fallback)
+			return fallback, nil
+		} else {
+			boolValue, err := strconv.ParseBool(value)
+			if err != nil {
+				return fallback, fmt.Errorf("Invalid value for %s=%q (expected true/false): %v", key, value, err)
+			}
+			return boolValue, nil
 		}
 	}
 }
@@ -68,4 +90,18 @@ func LoadConfig(filename string) (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+var toSnakeRe = regexp.MustCompile("([a-z0-9])([A-Z])")
+
+func ToSnake(s string) string {
+	return strings.ToLower(toSnakeRe.ReplaceAllString(s, "${1}_${2}"))
+}
+
+// Can be used if any error of a function should be fatal
+func Must[T any](t T, err error) T {
+	if err != nil {
+		log.Fatal(err)
+	}
+	return t
 }

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	psql "github.com/ionos-cloud/sdk-go-dbaas-postgres"
-	"github.com/joho/godotenv"
 )
 
 type IonosPostgresResources struct {
@@ -43,12 +42,7 @@ var (
 	IonosPostgresClusters       = make(map[string]IonosPostgresResources)
 )
 
-func PostgresCollectResources(m *sync.RWMutex, configPath, envFile string, cycletime int32) {
-	err := godotenv.Load(envFile)
-	if err != nil {
-		fmt.Println("Error loading .env file (optional)")
-	}
-
+func PostgresCollectResources(m *sync.RWMutex, configPath string, cycletime int32) {
 	cfgENV := psql.NewConfigurationFromEnv()
 	apiClient := psql.NewAPIClient(cfgENV)
 

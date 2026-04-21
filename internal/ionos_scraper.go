@@ -9,7 +9,6 @@ import (
 	"time"
 
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
-	"github.com/joho/godotenv"
 )
 
 var (
@@ -40,12 +39,7 @@ type IonosDCResources struct {
 	TotalAPICallFailures int32
 }
 
-func CollectResources(m *sync.RWMutex, envFile string, cycletime int32) {
-
-	err := godotenv.Load(envFile)
-	if err != nil {
-		fmt.Println("Error loading .env file (optional)")
-	}
+func CollectResources(m *sync.RWMutex, cycletime int32) {
 
 	cfgENV := ionoscloud.NewConfigurationFromEnv()
 

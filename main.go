@@ -45,6 +45,17 @@ func main() {
 		prometheus.MustRegister(contractLimitsCollector)
 	}
 
+	// Kubernetes States Exporter
+	if internal.Must(internal.GetBoolEnv("IONOS_EXPORTER_K8S_ENABLED", false)) {
+		if k8sFetchInterval, err := strconv.ParseInt(internal.GetEnv("IONOS_EXPORTER_K8S_FETCH_INTERVAL", "120"), 10, 32); err != nil {
+			log.Fatal("Cannot convert IONOS_EXPORTER_K8S_FETCH_INTERVAL to int")
+		} else {
+			k8sCollector := internal.NewKubernetesCollector()
+			go k8sCollector.StartScrape(int32(k8sFetchInterval))
+			prometheus.MustRegister(k8sCollector)
+		}
+	}
+
 	if internal.Must(internal.GetBoolEnv("IONOS_EXPORTER_S3_ENABLED", false)) {
 		go internal.S3CollectResources(m, ionos_api_cycle)
 	}

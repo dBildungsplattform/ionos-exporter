@@ -27,6 +27,9 @@ ionos:
       token_key: "tokenKey"
   postgres:
     enabled: false
+  k8s:
+    enabled: false
+    fetch_interval: 120
 
 service:
   type: ClusterIP

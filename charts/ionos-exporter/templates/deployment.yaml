@@ -83,6 +83,10 @@ spec:
               value: {{ .Values.ionos.postgres.enabled | quote }}
             - name: IONOS_EXPORTER_S3_ENABLED
               value: {{ .Values.ionos.s3.enabled | quote }}
+            - name: IONOS_EXPORTER_K8S_ENABLED
+              value: {{ .Values.ionos.k8s.enabled | quote }}
+            - name: IONOS_EXPORTER_K8S_FETCH_INTERVAL
+              value: {{ .Values.ionos.k8s.fetch_interval | quote }}
             - name: IONOS_EXPORTER_APPLICATION_CONTAINER_PORT
               value: {{ .Values.containerPort | quote }}
             - name: IONOS_EXPORTER_API_CYCLE

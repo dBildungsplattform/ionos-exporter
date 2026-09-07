@@ -100,7 +100,7 @@ func fetchPostgresqlV2Clusters(token, url string) (*PostgresqlV2Collection, erro
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	client := &http.Client{}
+client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

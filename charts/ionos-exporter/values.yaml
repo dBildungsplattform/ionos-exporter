@@ -27,6 +27,8 @@ ionos:
       token_key: "tokenKey"
   postgres:
     enabled: false
+  postgresql_v2:
+    enabled: false
   k8s:
     enabled: false
     fetch_interval: 120

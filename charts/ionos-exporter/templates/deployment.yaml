@@ -81,6 +81,8 @@ spec:
           {{- end }}
             - name: IONOS_EXPORTER_POSTGRES_ENABLED
               value: {{ .Values.ionos.postgres.enabled | quote }}
+            - name: IONOS_EXPORTER_POSTGRESQL_V2_ENABLED
+              value: {{ .Values.ionos.postgresql_v2.enabled | quote }}
             - name: IONOS_EXPORTER_S3_ENABLED
               value: {{ .Values.ionos.s3.enabled | quote }}
             - name: IONOS_EXPORTER_K8S_ENABLED

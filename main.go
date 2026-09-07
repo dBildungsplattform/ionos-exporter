@@ -64,6 +64,10 @@ func main() {
 		go internal.PostgresCollectResources(m, *configPath, ionos_api_cycle)
 	}
 
+	if internal.Must(internal.GetBoolEnv("IONOS_EXPORTER_POSTGRESQL_V2_ENABLED", false)) {
+		go internal.PostgresqlV2CollectResources(ionos_api_cycle)
+	}
+
 	internal.PrintDCResources(m)
 	internal.StartPrometheus(m)
 	http.Handle("/metrics", promhttp.Handler())

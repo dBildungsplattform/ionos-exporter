@@ -107,10 +107,14 @@ client := &http.Client{Timeout: 10 * time.Second}
 	}
 	defer resp.Body.Close()
 
-	var collection PostgresqlV2Collection
-	if err := json.NewDecoder(resp.Body).Decode(&collection); err != nil {
-		return nil, err
-	}
+if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	return nil, fmt.Errorf("unexpected status code %d from %s", resp.StatusCode, url)
+}
+
+var collection PostgresqlV2Collection
+if err := json.NewDecoder(resp.Body).Decode(&collection); err != nil {
+	return nil, err
+}
 
 	return &collection, nil
 }

@@ -24,6 +24,10 @@ func (collector *postgresCollector) GetMutex() *sync.RWMutex {
 	return collector.mutex
 }
 
+func (collector *PostgresqlV2Collector) GetMutex() *sync.RWMutex {
+	return &postgresqlV2Mutex
+}
+
 func StartPrometheus(m *sync.RWMutex) {
 	dcMutex := &sync.RWMutex{}
 	s3Mutex := &sync.RWMutex{}
@@ -32,10 +36,12 @@ func StartPrometheus(m *sync.RWMutex) {
 	ionosCollector := NewIonosCollector(dcMutex)
 	s3Collector := NewS3Collector(s3Mutex)
 	pgCollector := NewPostgresCollector(pgMutex)
+	pgV2Collector := NewPostgresqlV2Collector()
 
 	prometheus.MustRegister(ionosCollector)
 	prometheus.MustRegister(s3Collector)
 	prometheus.MustRegister(pgCollector)
+	prometheus.MustRegister(pgV2Collector)
 	prometheus.MustRegister(HttpRequestsTotal)
 }
 
